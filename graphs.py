@@ -1,16 +1,8 @@
 from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
-from kivy.uix.popup import Popup
 from kivy.uix.label import Label
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.textinput import TextInput
 from kivy.uix.image import Image
-import os
-import sys
-from kivy.clock import Clock
-import time
-
 
 from matplotlib.pyplot import figure
 import matplotlib.pyplot as plt
@@ -21,7 +13,6 @@ import numpy as np
 class GraphsApp(App):
     def build(self):
         def restart(instance):
-            print(f'exec: {sys.executable} {["python"] + sys.argv}')
             os.execvp(sys.executable, ['python'] + sys.argv)
         conn = sqlite3.connect('pigmentos.db')
         cursor = conn.cursor()
@@ -71,9 +62,7 @@ class GraphsApp(App):
 
         for i in range(len(estoque)):
             estoque_maximo = 3*estoque_min[i]
-            print(estoque_maximo)
             porcentagem = estoque[i]/estoque_maximo
-            print(porcentagem)
             array_parte2 = (estoque_maximo-porcentagem)/estoque_maximo
             y = np.array([porcentagem,array_parte2])
             fig = plt.figure()
