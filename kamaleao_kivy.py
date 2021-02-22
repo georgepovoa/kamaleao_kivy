@@ -509,7 +509,7 @@ class KamaleaoApp(App):
                     if layout_add_pgm_TI_nome.text == '' or layout_add_pgm_TI_nome.text == ' ':
                         print("Nome vazio")
                     else :
-                        if layout_add_pgm_TI_quantidade.text == '' or layout_add_pgm_TI_quantidade.text== None:
+                        if layout_add_pgm_TI_quantidade.text == '' or layout_add_pgm_TI_quantidade.text== None and layout_add_pgm_TI_est_min.text == '' or layout_add_pgm_TI_est_min.text== None and layout_add_pgm_TI_est_emerg.text== '' or layout_add_pgm_TI_est_emerg.text== None:
                             layout_add_pgm_TI_quantidade.text = "0"
                             layout_add_pgm_TI_est_min.text ="1"
                             layout_add_pgm_TI_est_emerg.text= "1"
@@ -517,13 +517,10 @@ class KamaleaoApp(App):
 
                         elif layout_add_pgm_TI_est_min.text == '' or layout_add_pgm_TI_est_min.text== None:
                             layout_add_pgm_TI_est_min.text ="1"
-                            layout_add_pgm_TI_quantidade.text = "0"
                             layout_add_pgm_TI_est_emerg.text= "1"
 
                         elif layout_add_pgm_TI_est_emerg.text== '' or layout_add_pgm_TI_est_emerg.text== None:
                             layout_add_pgm_TI_est_emerg.text= "1"
-                            layout_add_pgm_TI_quantidade.text = "0"
-                            layout_add_pgm_TI_est_min.text ="1"
 
 
                         lista_novo_pgm = [layout_add_pgm_TI_nome.text, layout_add_pgm_TI_quantidade.text,
