@@ -5,22 +5,22 @@ from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
-from kivy.properties import ListProperty
 from subprocess import Popen, PIPE
 from kivy.graphics import Color, Rectangle
 import sqlite3
+from kivy.clock import Clock
+from pynput.keyboard import Key, Controller
 
 conn = sqlite3.connect('pigmentos.db')
 cursor = conn.cursor()
 conn_forms = sqlite3.connect('forms.db')
 cursor_forms = conn_forms.cursor()
 
+
 class KamaleaoApp(App):
 
-
     def build(self):
-
-
+        keyboard = Controller()
 
         # pigmentos_table = """
 
@@ -59,7 +59,7 @@ class KamaleaoApp(App):
                                 incremento_estoque = [novo_estoque, nome]
                                 conn.execute("UPDATE pigmentos SET estoque = ? WHERE nome = ?", incremento_estoque)
                                 cursor.execute('''SELECT * from pigmentos''')
-                                #conn.commit()
+                                conn.commit()
                             except:
                                 print("sem valor mano")
                             tela_adicionar_estoque_popup.dismiss()
@@ -104,7 +104,7 @@ class KamaleaoApp(App):
                 tabela_header.add_widget(Label(text="EMERG"))
                 layout_ver_tabela.add_widget(tabela_header)
 
-                tabela_conteudo = GridLayout(cols=4, size_hint_y=None, height=3000, spacing=[0, 45], padding=10)
+                tabela_conteudo = GridLayout(cols=4, size_hint_y=None, height=500, spacing=[0, 45], padding=10)
 
                 cursor.execute('''SELECT nome,estoque,estoque_min,estoque_emerg from pigmentos''')
                 result = list(cursor.fetchall())
@@ -119,7 +119,7 @@ class KamaleaoApp(App):
 
                 tabela_btt = GridLayout(cols=2)
 
-                tabela_btt_enviar = Button(text="Adicionar ao estoque")
+                tabela_btt_enviar = Button(text="Adicionar ao estoque",background_color=(1,0,0,1))
                 tabela_btt_enviar.bind(on_press=adicionar_estoque)
                 tabela_btt.add_widget(tabela_btt_enviar)
 
@@ -138,7 +138,7 @@ class KamaleaoApp(App):
                         conn.execute("UPDATE pigmentos SET estoque_min = ? WHERE nome = ?", novo_estoque_min)
                         cursor.execute("SELECT estoque_min FROM pigmentos WHERE nome = ?", teste_tabela)
                         result = cursor.fetchone()
-                        #conn.commit()
+                        conn.commit()
                     except:
                         print("sem valor tbm")
                     layout_min_estoque_popup.dismiss()
@@ -170,7 +170,7 @@ class KamaleaoApp(App):
                         conn.execute("UPDATE pigmentos SET estoque_emerg = ? WHERE nome = ?", novo_estoque_emerg)
                         cursor.execute("SELECT estoque_emerg FROM pigmentos WHERE nome = ?", teste_tabela)
                         result = cursor.fetchone()
-                        #conn.commit()
+                        conn.commit()
                     except:
                         print("foi não, faltou coisa ai")
                     layout_emerg_estoque_popup.dismiss()
@@ -218,6 +218,7 @@ class KamaleaoApp(App):
                     nome_remover_funcao = [form_name_rmv.text]
                     try:
                         cursor_forms.execute("DELETE FROM forms WHERE nome = ?", nome_remover_funcao)
+                        conn_forms.commit()
                     except sqlite3.Error as error:
                         print("Failed to delete record from sqlite table", error)
                     layout_tela_rmv_form_popup.dismiss()
@@ -248,7 +249,7 @@ class KamaleaoApp(App):
                         for s in sei_do_q_chamar_n[i]:
                             zz.append(s)
                         if vars_name[i].text == '' or vars_name[i].text == None:
-                            vars_name[i].text="0"
+                            vars_name[i].text = "0"
                         zz.append(vars_name[i].text)
                     dicta[form_name.text] = zz
                     para_db = '\n'.join(dicta[form_name.text])
@@ -261,7 +262,7 @@ class KamaleaoApp(App):
                         pass
                     layout_add_form_popup.dismiss()
 
-                layout_add_form = GridLayout(rows=30)
+                layout_add_form = GridLayout(cols=2)
                 layout_add_form.add_widget(Label(text="nome"))
                 form_name = TextInput(multiline=False)
                 layout_add_form.add_widget(form_name)
@@ -298,7 +299,9 @@ class KamaleaoApp(App):
         def aba_producao(instance):
 
             def simular_tab(instance):
+
                 def pesquisa_forms_func(instance, value):
+
                     pesquisa_forms.clear_widgets()
 
                     cursor_forms.execute("SELECT nome FROM forms WHERE nome LIKE '%{}%'".format(form.text))
@@ -309,12 +312,17 @@ class KamaleaoApp(App):
 
                 def enviar_simulacao(instance):
                     def comitar(instance):
+                        validar = True
                         for i in range(len(valor_quando_abater)):
-                            lista_pro_db = [valor_quando_abater[i], nomes_pigmentos_lista[i]]
-                            conn.execute("UPDATE pigmentos SET estoque = ? WHERE nome = ?", lista_pro_db)
-                            #conn.commit()
+                            if valor_quando_abater[i] < 0:
+                                validar = False
+                            if validar == True:
+                                for i in range(len(valor_quando_abater)):
+                                    lista_pro_db = [valor_quando_abater[i], nomes_pigmentos_lista[i]]
+                                    conn.execute("UPDATE pigmentos SET estoque = ? WHERE nome = ?", lista_pro_db)
+                                    conn.commit()
 
-                    try :
+                    try:
                         valor_quando_abater = []
 
                         cursor.execute("SELECT nome FROM pigmentos")
@@ -331,8 +339,8 @@ class KamaleaoApp(App):
                             for z in valor_antigo:
                                 valor_antigo_fora_do_tuple = z
                             valor_quando_abater.append(valor_antigo_fora_do_tuple - tabela_simulacao_cores[i])
-                            #print(float(valor_antigo_fora_do_tuple))
-                            #print(float(tabela_simulacao_cores[i]))
+                            # print(float(valor_antigo_fora_do_tuple))
+                            # print(float(tabela_simulacao_cores[i]))
 
                         layout_mostrar_simulacao = GridLayout(cols=2)
                         layout_mostrar_simulacao.add_widget(Label(text="NOME PGMENTO"))
@@ -345,6 +353,7 @@ class KamaleaoApp(App):
                             else:
                                 layout_mostrar_simulacao.add_widget(
                                     Label(text=str(valor_quando_abater[i]), color=[1, 0, 0, 1]))
+
                         layout_mostrar_simulacao_btt_enviar = Button(text="enivar")
                         layout_mostrar_simulacao_btt_enviar.bind(on_press=comitar)
                         layout_mostrar_simulacao.add_widget(layout_mostrar_simulacao_btt_enviar)
@@ -369,7 +378,44 @@ class KamaleaoApp(App):
                     pass
 
                 def adicionar_cor(instance):
-                    if form.text==''or form.text ==" ":
+                    def refresh_simu():
+                        layout_mostrar_simulacao.clear_widgets()
+                        try:
+                            valor_quando_abater = []
+                            valor_antes_abater = []
+
+                            cursor.execute("SELECT nome FROM pigmentos")
+                            nomes_pigmentos = cursor.fetchall()
+                            nomes_pigmentos_lista = []
+                            for i in nomes_pigmentos:
+                                for j in i:
+                                    nomes_pigmentos_lista.append(j)
+
+                            for i in range(len(nomes_pigmentos_lista)):
+                                nome_pro_db = [nomes_pigmentos_lista[i]]
+                                cursor.execute("SELECT estoque FROM pigmentos WHERE nome = ?", nome_pro_db)
+                                valor_antigo = cursor.fetchone()
+                                for z in valor_antigo:
+                                    valor_antigo_fora_do_tuple = z
+                                valor_quando_abater.append(valor_antigo_fora_do_tuple - tabela_simulacao_cores[i])
+                                valor_antes_abater.append(valor_antigo_fora_do_tuple)
+                                # print(float(valor_antigo_fora_do_tuple))
+                                # print(float(tabela_simulacao_cores[i]))
+
+                            for i in range(len(valor_quando_abater)):
+                                if valor_quando_abater[i]!=valor_antes_abater[i]:
+                                    layout_mostrar_simulacao.add_widget(Label(text=str(nomes_pigmentos_lista[i])))
+                                    if valor_quando_abater[i] >= 0:
+                                        layout_mostrar_simulacao.add_widget(Label(text=str(valor_quando_abater[i])))
+                                    else:
+                                        layout_mostrar_simulacao.add_widget(
+                                            Label(text=str(valor_quando_abater[i]), color=[1, 0, 0, 1]))
+                                else:
+                                    print("{} não alterou".format(nomes_pigmentos_lista[i]))
+                        except:
+                            print("sei lá qq deu")
+
+                    if form.text == '' or form.text == " ":
                         print("vai dar nao")
                     else:
                         formula = [form.text]
@@ -385,11 +431,9 @@ class KamaleaoApp(App):
                             for xyz in lista_formatada_pre:
                                 if xyz.isnumeric():
                                     lista_formatada.append(xyz)
-                            forms_enviados.add_widget(Label(text=form.text+" X {}".format(qnt.text)))
+                            forms_enviados.add_widget(Label(text=form.text + " X {}".format(qnt.text)))
                         except:
                             print("existe essa cor nao")
-
-
 
                         for asd in range(len(lista_formatada)):
                             try:
@@ -397,12 +441,19 @@ class KamaleaoApp(App):
                             except:
                                 pass
                         form.text = ""
-                        qnt.text = ""
+                        qnt.text = "1"
+                        refresh_simu()
+
+
+
+
+
+
 
                 def abater_formula(instance):
-                    if form.text == "" or form.text ==" ":
+                    if form.text == "" or form.text == " ":
                         print("vai dar nao tbm")
-                    else :
+                    else:
                         form_name = [form.text]
                         cursor_forms.execute("SELECT * FROM forms WHERE nome=?", form_name)
                         test = cursor_forms.fetchall()
@@ -433,7 +484,22 @@ class KamaleaoApp(App):
                             incremento_estoque = [novo_estoque, nomes[i]]
 
                             conn.execute("UPDATE pigmentos SET estoque = ? WHERE nome = ?", incremento_estoque)
-                            #conn.commit()
+                            conn.commit()
+                def limpar_sim(instance):
+                    def abrir_de_novo(dt):
+                        layout_simular_tab_full_popup.open()
+
+                    keyboard.press(Key.esc)
+                    keyboard.release(Key.esc)
+                    Clock.schedule_once(abrir_de_novo,2)
+
+
+
+
+
+
+                layout_simular_tab_full_mais_full_ainda = GridLayout(cols=2)
+
 
                 layout_simular_tab_full = GridLayout(rows=2)
 
@@ -444,7 +510,7 @@ class KamaleaoApp(App):
                 layout_simular_tab.add_widget(form)
 
                 layout_simular_tab.add_widget(Label(text='Quantidade'))
-                qnt = TextInput(multiline=False, input_filter='float',text="1")
+                qnt = TextInput(multiline=False, input_filter='float', text="1")
                 layout_simular_tab.add_widget(qnt)
 
                 pesquisa_forms = GridLayout(cols=2)
@@ -471,9 +537,53 @@ class KamaleaoApp(App):
                 simular_tab_btts_bottom_btt_abater_estoque.bind(on_press=abater_formula)
                 simular_tab_btts_bottom.add_widget(simular_tab_btts_bottom_btt_abater_estoque)
 
+                simular_tab_btts_bottom_btt_limpar = Button(text="LIMPAR")
+                simular_tab_btts_bottom_btt_limpar.bind(on_press=limpar_sim)
+                simular_tab_btts_bottom.add_widget(simular_tab_btts_bottom_btt_limpar)
+
                 layout_simular_tab_full.add_widget(simular_tab_btts_bottom)
 
-                layout_simular_tab_full_popup = Popup(title="q?", content=layout_simular_tab_full)
+                layout_simular_tab_full_mais_full_ainda.add_widget(layout_simular_tab_full)
+
+                try:
+                    valor_quando_abater = []
+
+                    cursor.execute("SELECT nome FROM pigmentos")
+                    nomes_pigmentos = cursor.fetchall()
+                    nomes_pigmentos_lista = []
+                    for i in nomes_pigmentos:
+                        for j in i:
+                            nomes_pigmentos_lista.append(j)
+
+                    for i in range(len(nomes_pigmentos_lista)):
+                        nome_pro_db = [nomes_pigmentos_lista[i]]
+                        cursor.execute("SELECT estoque FROM pigmentos WHERE nome = ?", nome_pro_db)
+                        valor_antigo = cursor.fetchone()
+                        for z in valor_antigo:
+                            valor_antigo_fora_do_tuple = z
+                        valor_quando_abater.append(valor_antigo_fora_do_tuple - tabela_simulacao_cores[i])
+                        # print(float(valor_antigo_fora_do_tuple))
+                        # print(float(tabela_simulacao_cores[i]))
+
+                    layout_mostrar_simulacao = GridLayout(cols=2)
+                    layout_mostrar_simulacao.add_widget(Label(text="NOME PGMENTO"))
+                    layout_mostrar_simulacao.add_widget(Label(text="VALOR DEPOIS DA SIMULAÇÃO"))
+
+                    for i in range(len(valor_quando_abater)):
+                        layout_mostrar_simulacao.add_widget(Label(text=str(nomes_pigmentos_lista[i])))
+                        if valor_quando_abater[i] >= 0:
+                            layout_mostrar_simulacao.add_widget(Label(text=str(valor_quando_abater[i])))
+                        else:
+                            layout_mostrar_simulacao.add_widget(
+                                Label(text=str(valor_quando_abater[i]), color=[1, 0, 0, 1]))
+                except:
+                    print("sei lá qq deu")
+
+                layout_simular_tab_full_mais_full_ainda.add_widget(layout_mostrar_simulacao)
+
+
+
+                layout_simular_tab_full_popup = Popup(title="ABA DE SIMULAÇÃO?", content=layout_simular_tab_full_mais_full_ainda)
 
                 layout_simular_tab_full_popup.open()
 
@@ -508,29 +618,27 @@ class KamaleaoApp(App):
                 def add_pgm_de_vdd(instance):
                     if layout_add_pgm_TI_nome.text == '' or layout_add_pgm_TI_nome.text == ' ':
                         print("Nome vazio")
-                    else :
-                        if layout_add_pgm_TI_quantidade.text == '' or layout_add_pgm_TI_quantidade.text== None and layout_add_pgm_TI_est_min.text == '' or layout_add_pgm_TI_est_min.text== None and layout_add_pgm_TI_est_emerg.text== '' or layout_add_pgm_TI_est_emerg.text== None:
+                    else:
+                        if layout_add_pgm_TI_quantidade.text == '' or layout_add_pgm_TI_quantidade.text == None and layout_add_pgm_TI_est_min.text == '' or layout_add_pgm_TI_est_min.text == None and layout_add_pgm_TI_est_emerg.text == '' or layout_add_pgm_TI_est_emerg.text == None:
                             layout_add_pgm_TI_quantidade.text = "0"
-                            layout_add_pgm_TI_est_min.text ="1"
-                            layout_add_pgm_TI_est_emerg.text= "1"
+                            layout_add_pgm_TI_est_min.text = "1"
+                            layout_add_pgm_TI_est_emerg.text = "1"
 
 
-                        elif layout_add_pgm_TI_est_min.text == '' or layout_add_pgm_TI_est_min.text== None:
-                            layout_add_pgm_TI_est_min.text ="1"
-                            layout_add_pgm_TI_est_emerg.text= "1"
+                        elif layout_add_pgm_TI_est_min.text == '' or layout_add_pgm_TI_est_min.text == None:
+                            layout_add_pgm_TI_est_min.text = "1"
+                            layout_add_pgm_TI_est_emerg.text = "1"
 
-                        elif layout_add_pgm_TI_est_emerg.text== '' or layout_add_pgm_TI_est_emerg.text== None:
-                            layout_add_pgm_TI_est_emerg.text= "1"
-
+                        elif layout_add_pgm_TI_est_emerg.text == '' or layout_add_pgm_TI_est_emerg.text == None:
+                            layout_add_pgm_TI_est_emerg.text = "1"
 
                         lista_novo_pgm = [layout_add_pgm_TI_nome.text, layout_add_pgm_TI_quantidade.text,
                                           layout_add_pgm_TI_est_min.text, layout_add_pgm_TI_est_emerg.text]
                         conn.execute("INSERT INTO pigmentos(nome,estoque,estoque_min,estoque_emerg) VALUES(?,?,?,?)",
                                      lista_novo_pgm)
                         cursor.execute('''SELECT * from pigmentos''')
-                        #conn.commit()
+                        conn.commit()
                         layout_add_pgm_popup.dismiss()
-
 
                 layout_add_pgm_toda = GridLayout(rows=2)
                 layout_add_pgm = GridLayout(cols=2)
@@ -560,7 +668,7 @@ class KamaleaoApp(App):
                     nome = [nome_pra_remover.text]
                     try:
                         cursor.execute("DELETE FROM pigmentos WHERE nome = ?", nome)
-                        #conn.commit()
+                        conn.commit()
                     except sqlite3.Error as error:
                         print("Failed to delete record from sqlite table", error)
 
@@ -609,7 +717,7 @@ class KamaleaoApp(App):
         ###### menu #######
 
         layout.add_widget(menu)
-        #process = Popen(['python3', 'graphs.py'], stdout=PIPE, stderr=PIPE)
+        process = Popen(['python3', 'graphs.py'], stdout=PIPE, stderr=PIPE)
         return layout
 
 
