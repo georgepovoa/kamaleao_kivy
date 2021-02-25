@@ -45,7 +45,7 @@ class KamaleaoApp(App):
                             refresh_tabela_result = list(cursor.fetchall())
                             for i in refresh_tabela_result:
                                 for j in i:
-                                    lbl = Label(text=str(j))
+                                    lbl = Label(text=str(j),font_name="venv/kamaleao_kivy/fonts/bariol_regular-webfont.ttf")
                                     tabela_conteudo.add_widget(lbl)
 
                         def enviar_db_de_vdd(instance):
@@ -88,7 +88,7 @@ class KamaleaoApp(App):
                     result = list(cursor.fetchall())
                     for i in result:
                         for j in i:
-                            btn = Button(text=str(j))
+                            btn = Button(text=str(j),font_name="fonts/bariol_bold-webfont")
                             btn.bind(on_release=lambda btn: enviar_db(btn.text))
                             adicionar_estoque.add_widget(btn)
 
@@ -119,13 +119,13 @@ class KamaleaoApp(App):
 
                 tabela_btt = GridLayout(cols=2)
 
-                tabela_btt_enviar = Button(text="Adicionar ao estoque",background_color=(1,0,0,1))
+                tabela_btt_enviar = Button(text="Adicionar ao estoque", background_color=(1, 0, 0, 1))
                 tabela_btt_enviar.bind(on_press=adicionar_estoque)
                 tabela_btt.add_widget(tabela_btt_enviar)
 
                 layout_ver_tabela.add_widget(tabela_btt)
 
-                ver_tabela_popup = Popup(title="Estoque", content=layout_ver_tabela)
+                ver_tabela_popup = Popup(title="Estoque", content=layout_ver_tabela,size_hint=(0.85,0.85))
                 ver_tabela_popup.open()
 
             def min_estoque(instance):
@@ -235,7 +235,7 @@ class KamaleaoApp(App):
 
                 layout_tela_rmv_form.add_widget(layout_tela_rmv_form_btt_rmv)
 
-                layout_tela_rmv_form_popup = Popup(title="remover fórmula", content=layout_tela_rmv_form)
+                layout_tela_rmv_form_popup = Popup(title="remover fórmula", content=layout_tela_rmv_form,size_hint=(0.85,0.85))
 
                 layout_tela_rmv_form_popup.open()
 
@@ -279,7 +279,7 @@ class KamaleaoApp(App):
                 asdasdsa.bind(on_press=asjdklsa)
                 layout_add_form.add_widget(asdasdsa)
 
-                layout_add_form_popup = Popup(title="cansei já", content=layout_add_form)
+                layout_add_form_popup = Popup(title="cansei já", content=layout_add_form,size_hint=(0.85,0.85))
 
                 layout_add_form_popup.open()
 
@@ -293,7 +293,7 @@ class KamaleaoApp(App):
             layout_forms.add_widget(layout_forms_btt_add)
             layout_forms.add_widget(layout_forms_btt_rmv)
 
-            layout_forms_popup = Popup(title="SIMULAÇÃO", content=layout_forms)
+            layout_forms_popup = Popup(title="SIMULAÇÃO", content=layout_forms,size_hint=(0.85,0.85))
             layout_forms_popup.open()
 
         def aba_producao(instance):
@@ -360,7 +360,7 @@ class KamaleaoApp(App):
                         layout_mostrar_simulacao_btt_cancelar = Button(text="cancelar")
                         layout_mostrar_simulacao.add_widget(layout_mostrar_simulacao_btt_cancelar)
 
-                        layout_mostrar_simulacao_popup = Popup(title="SIMULAÇÃO", content=layout_mostrar_simulacao)
+                        layout_mostrar_simulacao_popup = Popup(title="SIMULAÇÃO", content=layout_mostrar_simulacao,size_hint=(0.85,0.85))
                         layout_mostrar_simulacao_popup.open()
                     except:
                         print("deu não mano")
@@ -403,7 +403,7 @@ class KamaleaoApp(App):
                                 # print(float(tabela_simulacao_cores[i]))
 
                             for i in range(len(valor_quando_abater)):
-                                if valor_quando_abater[i]!=valor_antes_abater[i]:
+                                if valor_quando_abater[i] != valor_antes_abater[i]:
                                     layout_mostrar_simulacao.add_widget(Label(text=str(nomes_pigmentos_lista[i])))
                                     if valor_quando_abater[i] >= 0:
                                         layout_mostrar_simulacao.add_widget(Label(text=str(valor_quando_abater[i])))
@@ -444,12 +444,6 @@ class KamaleaoApp(App):
                         qnt.text = "1"
                         refresh_simu()
 
-
-
-
-
-
-
                 def abater_formula(instance):
                     if form.text == "" or form.text == " ":
                         print("vai dar nao tbm")
@@ -485,21 +479,12 @@ class KamaleaoApp(App):
 
                             conn.execute("UPDATE pigmentos SET estoque = ? WHERE nome = ?", incremento_estoque)
                             conn.commit()
+
                 def limpar_sim(instance):
-                    def abrir_de_novo(dt):
-                        layout_simular_tab_full_popup.open()
-
-                    keyboard.press(Key.esc)
-                    keyboard.release(Key.esc)
-                    Clock.schedule_once(abrir_de_novo,2)
-
-
-
-
-
+                    # entendi direito como funciona não
+                    simular_tab(instance)
 
                 layout_simular_tab_full_mais_full_ainda = GridLayout(cols=2)
-
 
                 layout_simular_tab_full = GridLayout(rows=2)
 
@@ -581,9 +566,8 @@ class KamaleaoApp(App):
 
                 layout_simular_tab_full_mais_full_ainda.add_widget(layout_mostrar_simulacao)
 
-
-
-                layout_simular_tab_full_popup = Popup(title="ABA DE SIMULAÇÃO?", content=layout_simular_tab_full_mais_full_ainda)
+                layout_simular_tab_full_popup = Popup(title="ABA DE SIMULAÇÃO?",
+                                                      content=layout_simular_tab_full_mais_full_ainda,size_hint=(0.85,0.85))
 
                 layout_simular_tab_full_popup.open()
 
@@ -600,7 +584,7 @@ class KamaleaoApp(App):
             layout_prod_forms_btt.bind(on_press=forms)
             layout_prod.add_widget(layout_prod_forms_btt)
 
-            layout_prod_popup = Popup(title="PROD", content=layout_prod)
+            layout_prod_popup = Popup(title="PROD", content=layout_prod,size_hint=(0.85,0.85))
             layout_prod_popup.open()
 
         layout = GridLayout(cols=1)
@@ -610,7 +594,7 @@ class KamaleaoApp(App):
             layout_fin = GridLayout(cols=2)
             layout_fin.add_widget(Label(text="ainda nao sei o que colocar"))
 
-            layout_fin_popup = Popup(title="fin", content=layout_fin)
+            layout_fin_popup = Popup(title="fin", content=layout_fin,size_hint=(0.85,0.85))
             layout_fin_popup.open()
 
         def tela_add_or_rmv(instance):
@@ -660,7 +644,7 @@ class KamaleaoApp(App):
                 layout_add_pgm_btt.bind(on_press=add_pgm_de_vdd)
                 layout_add_pgm_toda.add_widget(layout_add_pgm_btt)
 
-                layout_add_pgm_popup = Popup(title="ADD PIGMENTO", content=layout_add_pgm_toda)
+                layout_add_pgm_popup = Popup(title="ADD PIGMENTO", content=layout_add_pgm_toda,size_hint=(0.85,0.85))
                 layout_add_pgm_popup.open()
 
             def rmv_pigmento(instance):
@@ -683,7 +667,7 @@ class KamaleaoApp(App):
                 layout_tela_rmv_btt.bind(on_press=remover_pigmento_de_vdd)
                 layout_tela_rmv.add_widget(layout_tela_rmv_btt)
 
-                layout_tela_rmv_popup = Popup(title="remover pigmento", content=layout_tela_rmv)
+                layout_tela_rmv_popup = Popup(title="remover pigmento", content=layout_tela_rmv,size_hint=(0.85,0.85))
                 layout_tela_rmv_popup.open()
 
             layout_tela_add_or_tmv = GridLayout(rows=2)
@@ -694,7 +678,7 @@ class KamaleaoApp(App):
             layout_tela_add_or_tmv.add_widget(layout_tela_add_or_tmv_btt_add)
             layout_tela_add_or_tmv.add_widget(layout_tela_add_or_tmv_btt_rmv)
 
-            layout_tela_add_or_tmv_popup = Popup(title="ADD or RMV", content=layout_tela_add_or_tmv)
+            layout_tela_add_or_tmv_popup = Popup(title="ADD or RMV", content=layout_tela_add_or_tmv,size_hint=(0.85,0.85))
 
             layout_tela_add_or_tmv_popup.open()
 
@@ -717,7 +701,7 @@ class KamaleaoApp(App):
         ###### menu #######
 
         layout.add_widget(menu)
-        process = Popen(['python3', 'graphs.py'], stdout=PIPE, stderr=PIPE)
+        # process = Popen(['python3', 'graphs.py'], stdout=PIPE, stderr=PIPE)
         return layout
 
 
