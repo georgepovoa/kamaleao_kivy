@@ -126,138 +126,391 @@ class KamaleãoApp(App):
             aba_estoque_pg = Popup(title="ESTOQUE", content=layout_tabela, size_hint=(0.85, 0.85), )
             aba_estoque_pg.open()
 
-
         def forms(instance):
-            def enviar_forms(instance):
-                formula = {}
-                for i in range(len(nome_das_materias_primas_iterate)):
-                    if nome_das_materias_primas_iterate[i].text == "" or nome_das_materias_primas_iterate[i].text == ' ':
-                        nome_das_materias_primas_iterate[i].text ='0'
+            def tela_rmv_form(instance):
+                def remover_funcao(instance):
+                    nome_remover_funcao = [form_name_rmv.text]
+                    try:
+                        cursor_forms.execute("DELETE FROM forms WHERE nome = ?", nome_remover_funcao)
+                        # conn_forms.commit()
+                    except sqlite3.Error as error:
+                        print("Failed to delete record from sqlite table", error)
+                    layout_tela_rmv_form_popup.dismiss()
 
-                    formula[nomes_mas_materias_primas_string[i]] = nome_das_materias_primas_iterate[i].text
+                layout_tela_rmv_form = GridLayout(cols=2)
 
-                formula_inteira = str(formula)
-                formula_db = [nome_da_formula.text, formula_inteira]
-                try:
-                    conn_kamaleao.execute("INSERT INTO formulas VALUES(?,?)", formula_db)
-                    result = cursor_kamaleao.execute("SELECT * FROM formulas")
-                    for f in result:
-                        print(f)
-                except:
-                    print("fórmula já existente")
+                layout_tela_rmv_form.add_widget(Label(text="Nome da Fórmula"))
 
-            formulas_layout = GridLayout(cols=2)
-            formulas_layout.add_widget(Label(text="Nome"))
-            nome_da_formula = TextInput()
-            formulas_layout.add_widget(nome_da_formula)
-            cursor_kamaleao.execute("SELECT nome FROM materia_prima")
-            result = cursor_kamaleao.fetchall()
-            nome_das_materias_primas_iterate = []
-            nomes_mas_materias_primas_string = []
-            # pegar todos os nomes
-            for i in result:
-                for z in i:
-                    formulas_layout.add_widget(Label(text=str(z)))
-                    nomes_mas_materias_primas_string.append(z)
-                    globals()[str(z)] = TextInput()
-                    nome_das_materias_primas_iterate.append(globals()[str(z)])
-                    formulas_layout.add_widget(globals()[z])
+                form_name_rmv = TextInput(multiline=False)
+                layout_tela_rmv_form.add_widget(form_name_rmv)
 
-            formulas_layout_btt = Button(text="enviar")
+                layout_tela_rmv_form_btt_rmv = Button(text="Remover")
+                layout_tela_rmv_form_btt_rmv.bind(on_press=remover_funcao)
 
+                layout_tela_rmv_form.add_widget(layout_tela_rmv_form_btt_rmv)
 
-            formulas_layout_btt.bind(on_press=enviar_forms)
-            formulas_layout.add_widget(formulas_layout_btt)
+                layout_tela_rmv_form_popup = Popup(title="remover fórmula", content=layout_tela_rmv_form,
+                                                   size_hint=(0.85, 0.85))
 
-            formulas_popup = Popup(title="forms", content=formulas_layout)
-            formulas_popup.open()
+                layout_tela_rmv_form_popup.open()
+
+            def add_form(instance):
+                def adicionar_form_db_func(instance):
+
+                    zz = []
+                    dicta = {}
+
+                    for i in range(len(vars_name)):
+                        for s in nome_pigmentos_para_forms[i]:
+                            zz.append(s)
+                        if vars_name[i].text == '' or vars_name[i].text == None:
+                            vars_name[i].text = "0"
+                        zz.append(vars_name[i].text)
+                    dicta[form_name.text] = zz
+                    para_db = '\n'.join(dicta[form_name.text])
+                    list_of_insert = [form_name.text, para_db]
+                    try:
+                        cursor_forms.execute("""
+                        INSERT INTO forms VALUES(?,?)
+                        """, list_of_insert)
+                        # conn_forms.commit()
+                    except Exception as e:
+                        print("exception 4: ", e)
+                    layout_add_form_popup.dismiss()
+
+                layout_add_form = GridLayout(cols=2)
+                layout_add_form.add_widget(Label(text="Nome"))
+                form_name = TextInput(multiline=False)
+                layout_add_form.add_widget(form_name)
+                cursor.execute("SELECT nome FROM pigmentos")
+                nome_pigmentos_para_forms = cursor.fetchall()
+                vars_name = []
+                for i in nome_pigmentos_para_forms:
+                    for z in i:
+                        layout_add_form.add_widget(Label(text=str(z)))
+                        globals()[z] = TextInput(text="0", multiline=False, input_filter='float')
+                        layout_add_form.add_widget(globals()[z])
+                        vars_name.append(globals()[z])
+                adicionar_form_db_btt = Button(text="Enviar")
+                adicionar_form_db_btt.bind(on_press=adicionar_form_db_func)
+                layout_add_form.add_widget(adicionar_form_db_btt)
+
+                layout_add_form_popup = Popup(title="cansei já", content=layout_add_form, size_hint=(0.85, 0.85))
+
+                layout_add_form_popup.open()
+
+            def ver_forms_func(instance):
+
+                tabela = GridLayout(cols=2)
+
+                tabela.add_widget(Label(text="Nome da Fórmula"))
+                tabela.add_widget(Label(text="Fórmula"))
+
+                cursor_forms.execute("SELECT nome FROM forms")
+                nomes_forms = cursor_forms.fetchall()
+
+                cursor_forms.execute("SELECT pgmts FROM forms")
+                formula = cursor_forms.fetchall()
+
+                ver_forms_func_popup = Popup(title="Ver forms", content=tabela)
+                ver_forms_func_popup.open()
+
+            layout_forms = GridLayout(rows=2)
+
+            layout_forms_btt_add = Button(text="Adicionar")
+            layout_forms_btt_add.bind(on_press=add_form)
+
+            layout_forms_btt_rmv = Button(text="Remover")
+            layout_forms_btt_rmv.bind(on_press=tela_rmv_form)
+
+            layout_forms_btt_form = Button(text="Ver Forms")
+            layout_forms_btt_form.bind(on_press=ver_forms_func)
+
+            layout_forms.add_widget(layout_forms_btt_add)
+            layout_forms.add_widget(layout_forms_btt_rmv)
+            layout_forms.add_widget(layout_forms_btt_form)
+
+            layout_forms_popup = Popup(title="SIMULAÇÃO", content=layout_forms, size_hint=(0.85, 0.85))
+            layout_forms_popup.open()
 
         def simular_tab(instance):
-            # precisa ser declarado antes do botão pq se nao toda vez reseta
-            formula_formatada = {}
-            def adicionar_cor(instance):
-                nome = [nome_da_formula.text]
-                direita_tab_content.clear_widgets()
 
-                cursor_kamaleao.execute("SELECT * FROM formulas WHERE nome = ?",nome)
+            def pesquisa_forms_func(instance, value):
+
+                pesquisa_forms.clear_widgets()
+                if form.text != '':
+                    cursor_forms.execute("SELECT nome FROM forms WHERE nome LIKE '{}%'".format(form.text))
+                    nomes = cursor_forms.fetchall()
+                    for i in nomes:
+                        for z in i:
+                            pesquisa_forms.add_widget(Label(text=str(z)))
+
+            def enviar_simulacao(instance):
+                def comitar(instance):
+                    validar = True
+                    for i in range(len(valor_quando_abater)):
+                        if valor_quando_abater[i] < 0:
+                            validar = False
+                        if validar:
+                            for i in range(len(valor_quando_abater)):
+                                lista_pro_db = [valor_quando_abater[i], nomes_pigmentos_lista[i]]
+                                conn.execute("UPDATE pigmentos SET estoque = ? WHERE nome = ?", lista_pro_db)
+                                # conn.commit()
+
                 try:
-                    formula_completa = cursor_kamaleao.fetchone()[1]
-                    formula_completa = formula_completa.replace("{",'')
-                    formula_completa = formula_completa.replace("}",'')
-                    formula_completa = formula_completa.translate({ord("'"):None})
-                    formula_completa =formula_completa.split(',')
-                    for i in formula_completa:
-                        i = i.strip()
-                        i = i.split(":")
-                        if i[0] in formula_formatada:
-                            formula_formatada[i[0]] += float(i[1])
-                        else :
-                            formula_formatada[i[0]] = float(i[1])
-                    for i in formula_formatada:
-                        nome = [i]
+                    valor_quando_abater = []
 
-                        cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?",nome)
-                        novo_valor = cursor_kamaleao.fetchone()[0]-formula_formatada.get(i)
-                        direita_tab_content.add_widget(Label(text=str(i)))
-                        direita_tab_content.add_widget(Label(text=str(novo_valor)))
+                    cursor.execute("SELECT nome FROM pigmentos")
+                    nomes_pigmentos = cursor.fetchall()
+                    nomes_pigmentos_lista = []
+                    for i in nomes_pigmentos:
+                        for j in i:
+                            nomes_pigmentos_lista.append(j)
 
+                    for i in range(len(nomes_pigmentos_lista)):
+                        nome_pro_db = [nomes_pigmentos_lista[i]]
+                        cursor.execute("SELECT estoque FROM pigmentos WHERE nome = ?", nome_pro_db)
+                        valor_antigo = cursor.fetchone()
+                        for z in valor_antigo:
+                            valor_antigo_fora_do_tuple = z
+                        valor_quando_abater.append(valor_antigo_fora_do_tuple - tabela_simulacao_cores[i])
+                        # print(float(valor_antigo_fora_do_tuple))
+                        # print(float(tabela_simulacao_cores[i]))
 
-                        print(novo_valor)
-                except:
-                    print("NOME NÃO EXISTE NO BANCO DE DADOS")
-                    #('teste', 789.0)
-                    #('teste 1', 380.0)
-                    #('teste 2', 1500.0)
+                    layout_mostrar_simulacao = GridLayout(cols=2)
+                    layout_mostrar_simulacao.add_widget(Label(text="Nome do pigmento"))
+                    layout_mostrar_simulacao.add_widget(Label(text="Valor pós simulação"))
 
+                    for i in range(len(valor_quando_abater)):
+                        layout_mostrar_simulacao.add_widget(Label(text=str(nomes_pigmentos_lista[i])))
+                        if valor_quando_abater[i] >= 0:
+                            layout_mostrar_simulacao.add_widget(Label(text=str(valor_quando_abater[i])))
+                        else:
+                            layout_mostrar_simulacao.add_widget(
+                                Label(text=str(valor_quando_abater[i]), color=[1, 0, 0, 1]))
 
+                    layout_mostrar_simulacao_btt_enviar = Button(text="Enivar")
+                    layout_mostrar_simulacao_btt_enviar.bind(on_press=comitar)
+                    layout_mostrar_simulacao.add_widget(layout_mostrar_simulacao_btt_enviar)
+                    layout_mostrar_simulacao_btt_cancelar = Button(text="Cancelar")
+                    layout_mostrar_simulacao.add_widget(layout_mostrar_simulacao_btt_cancelar)
+
+                    layout_mostrar_simulacao_popup = Popup(title="Simulação", content=layout_mostrar_simulacao,
+                                                           size_hint=(0.85, 0.85))
+                    layout_mostrar_simulacao_popup.open()
+                except Exception as e:
+                    print("exception 5: ", e)
+
+            cursor_forms.execute("SELECT pgmts FROM forms")
+
+            tamanho_lista = cursor_forms.fetchall()
+            for i in tamanho_lista:
+                for z in i:
+                    a = z.split('\n')
+
+            try:
+                tabela_simulacao_cores = [0] * (int(len(a) / 2))
+            except Exception as e:
+                print("exception 6: ", e)
+
+            def adicionar_cor(instance):
+                def refresh_simu():
+                    layout_mostrar_simulacao.clear_widgets()
+                    try:
+                        valor_quando_abater = []
+                        valor_antes_abater = []
+
+                        cursor.execute("SELECT nome FROM pigmentos")
+                        nomes_pigmentos = cursor.fetchall()
+                        nomes_pigmentos_lista = []
+                        for i in nomes_pigmentos:
+                            for j in i:
+                                nomes_pigmentos_lista.append(j)
+
+                        for i in range(len(nomes_pigmentos_lista)):
+                            nome_pro_db = [nomes_pigmentos_lista[i]]
+                            cursor.execute("SELECT estoque FROM pigmentos WHERE nome = ?", nome_pro_db)
+                            valor_antigo = cursor.fetchone()
+                            for z in valor_antigo:
+                                valor_antigo_fora_do_tuple = z
+                            valor_quando_abater.append(valor_antigo_fora_do_tuple - tabela_simulacao_cores[i])
+                            valor_antes_abater.append(valor_antigo_fora_do_tuple)
+                            # print(float(valor_antigo_fora_do_tuple))
+                            # print(float(tabela_simulacao_cores[i]))
+
+                        for i in range(len(valor_quando_abater)):
+                            if valor_quando_abater[i] != valor_antes_abater[i]:
+                                layout_mostrar_simulacao.add_widget(Label(text=str(nomes_pigmentos_lista[i])))
+                                if valor_quando_abater[i] >= 0:
+                                    layout_mostrar_simulacao.add_widget(Label(text=str(valor_quando_abater[i])))
+                                else:
+                                    layout_mostrar_simulacao.add_widget(
+                                        Label(text=str(valor_quando_abater[i]), color=[1, 0, 0, 1]))
+                            else:
+                                print("{} não alterou".format(nomes_pigmentos_lista[i]))
+                    except Exception as e:
+                        print("exception 7: ", e)
+
+                if form.text == '' or form.text == " ":
+                    print("vai dar nao")
+                else:
+                    formula = [form.text]
+                    cursor_forms.execute("SELECT pgmts FROM forms WHERE nome = ?", formula)
+                    lista_pgmt = cursor_forms.fetchall()
+                    lista_formatada = []
+
+                    for i in lista_pgmt:
+                        for z in i:
+                            lista_formatada_pre = z.split("\n")
+
+                    try:
+                        for xyz in lista_formatada_pre:
+                            if xyz.isnumeric():
+                                lista_formatada.append(xyz)
+                        forms_enviados.add_widget(Label(text=form.text + " X {}".format(qnt.text)))
+                    except Exception as e:
+                        print("exception 8: ", e)
+
+                    for asd in range(len(lista_formatada)):
+                        try:
+                            tabela_simulacao_cores[asd] += (float(lista_formatada[asd])) * int(qnt.text)
+                        except Exception as e:
+                            print("exception 9: ", e)
+                    form.text = ""
+                    qnt.text = "1"
+                    refresh_simu()
+
+            def abater_formula(instance):
+                if form.text == "" or form.text == " ":
+                    print("vai dar nao tbm")
+                else:
+                    form_name = [form.text]
+                    cursor_forms.execute("SELECT * FROM forms WHERE nome=?", form_name)
+                    test = cursor_forms.fetchall()
+                    nomes = []
+                    valores = []
+                    for i in test:
+                        for j in test:
+                            for z in range(len(j)):
+                                s = j[z].split("\n")
+                                for zx in range(len(s)):
+                                    if zx % 2 == 0:
+                                        nomes.append(s[zx])
+                                    else:
+                                        valores.append("-" + s[zx])
+                    try:
+                        nomes.remove(nomes[0])
+                    except Exception as e:
+                        print("exception 10: ", e)
+
+                    for i in range(len(nomes)):
+
+                        nome_tabela = [nomes[i]]
+                        cursor.execute("SELECT estoque FROM pigmentos WHERE nome = ?", nome_tabela)
+                        result = cursor.fetchone()
+                        for z in result:
+                            estoque_antigo = z
+                        novo_estoque = float(valores[i]) + float(estoque_antigo)
+                        incremento_estoque = [novo_estoque, nomes[i]]
+
+                        conn.execute("UPDATE pigmentos SET estoque = ? WHERE nome = ?", incremento_estoque)
+                        # conn.commit()
+
+            def limpar_sim(instance):
+                # entendi direito como funciona não
+                layout_simular_tab_full_popup.dismiss()
+
+                simular_tab(instance)
+
+            layout_simular_tab_full_mais_full_ainda = GridLayout(cols=2)
+
+            layout_simular_tab_full = GridLayout(rows=2)
 
             layout_simular_tab = GridLayout(cols=2)
+            layout_simular_tab.add_widget(Label(text='Fórmula'))
+            form = TextInput(multiline=False)
+            form.bind(text=pesquisa_forms_func)
+            layout_simular_tab.add_widget(form)
 
-            esquerda_tab = GridLayout(cols=2)
+            layout_simular_tab.add_widget(Label(text='Quantidade'))
+            qnt = TextInput(multiline=False, input_filter='float', text="1")
+            layout_simular_tab.add_widget(qnt)
 
-            esquerda_tab.add_widget(Label(text="Nome da fórmula"))
-            nome_da_formula = TextInput()
-            esquerda_tab.add_widget(nome_da_formula)
+            pesquisa_forms = GridLayout(cols=2)
 
-            esquerda_tab.add_widget(Label(text="quantidade desejada"))
-            quantidade = TextInput()
-            esquerda_tab.add_widget(quantidade)
+            forms_enviados = GridLayout(cols=2)
 
-            produzir_btt = Button(text="produzir")
-            esquerda_tab.add_widget(produzir_btt)
+            layout_simular_tab.add_widget(pesquisa_forms)
 
-            adicionar_cor_btt = Button(text="adicionar cor")
-            adicionar_cor_btt.bind(on_press=adicionar_cor)
-            esquerda_tab.add_widget(adicionar_cor_btt)
+            layout_simular_tab.add_widget(forms_enviados)
 
-            limpar_btt = Button(text="limpar")
-            esquerda_tab.add_widget(limpar_btt)
+            layout_simular_tab_full.add_widget(layout_simular_tab)
 
+            simular_tab_btts_bottom = GridLayout(cols=2, size_hint=(1, 0.3))
 
+            simular_tab_btts_bottom_btt_limpar = Button(text="Limpar")
+            simular_tab_btts_bottom_btt_limpar.bind(on_press=limpar_sim)
+            simular_tab_btts_bottom.add_widget(simular_tab_btts_bottom_btt_limpar)
 
+            simular_tab_btts_bottom_btt_adicionar_cor = Button(text="Adicionar")
+            simular_tab_btts_bottom_btt_adicionar_cor.bind(on_press=adicionar_cor)
+            simular_tab_btts_bottom.add_widget(simular_tab_btts_bottom_btt_adicionar_cor)
 
+            simular_tab_btts_bottom_btt_abater_estoque = Button(text="Fórmulas")
+            simular_tab_btts_bottom_btt_abater_estoque.bind(on_press=forms)
+            simular_tab_btts_bottom.add_widget(simular_tab_btts_bottom_btt_abater_estoque)
 
+            simular_tab_btts_bottom_btt_simular = Button(text="Simular")
+            simular_tab_btts_bottom_btt_simular.bind(on_press=enviar_simulacao)
+            simular_tab_btts_bottom.add_widget(simular_tab_btts_bottom_btt_simular)
 
-            layout_simular_tab.add_widget(esquerda_tab)
+            layout_simular_tab_full.add_widget(simular_tab_btts_bottom)
 
+            layout_simular_tab_full_mais_full_ainda.add_widget(layout_simular_tab_full)
 
-            direita_tab = GridLayout(rows=2)
-            direita_tab_header = GridLayout(cols=2)
+            try:
+                valor_quando_abater = []
 
-            direita_tab_header.add_widget(Label(text="Nome da matéria prima"))
+                cursor.execute("SELECT nome FROM pigmentos")
+                nomes_pigmentos = cursor.fetchall()
+                nomes_pigmentos_lista = []
+                for i in nomes_pigmentos:
+                    for j in i:
+                        nomes_pigmentos_lista.append(j)
 
-            direita_tab_header.add_widget(Label(text="quantidade restante em estoque"))
-            direita_tab.add_widget(direita_tab_header)
+                for i in range(len(nomes_pigmentos_lista)):
+                    nome_pro_db = [nomes_pigmentos_lista[i]]
+                    cursor.execute("SELECT estoque FROM pigmentos WHERE nome = ?", nome_pro_db)
+                    valor_antigo = cursor.fetchone()
+                    for z in valor_antigo:
+                        valor_antigo_fora_do_tuple = z
+                    valor_quando_abater.append(valor_antigo_fora_do_tuple - tabela_simulacao_cores[i])
+                    # print(float(valor_antigo_fora_do_tuple))
+                    # print(float(tabela_simulacao_cores[i]))
 
-            direita_tab_content = GridLayout(cols=2)
+                layout_mostrar_simulacao = GridLayout(cols=2)
+                layout_mostrar_simulacao.add_widget(Label(text="Nome do pigmento"))
+                layout_mostrar_simulacao.add_widget(Label(text="Valor pós simulação"))
 
-            direita_tab.add_widget(direita_tab_content)
+                for i in range(len(valor_quando_abater)):
+                    layout_mostrar_simulacao.add_widget(Label(text=str(nomes_pigmentos_lista[i])))
+                    if valor_quando_abater[i] >= 0:
+                        layout_mostrar_simulacao.add_widget(Label(text=str(valor_quando_abater[i])))
+                    else:
+                        layout_mostrar_simulacao.add_widget(
+                            Label(text=str(valor_quando_abater[i]), color=[1, 0, 0, 1]))
+            except Exception as e:
+                print('exception 11: ', e)
+            try:
+                layout_simular_tab_full_mais_full_ainda.add_widget(layout_mostrar_simulacao)
 
-            layout_simular_tab.add_widget(direita_tab)
+                layout_simular_tab_full_popup = Popup(title="ABA DE SIMULAÇÃO?",
+                                                      content=layout_simular_tab_full_mais_full_ainda,
+                                                      size_hint=(0.85, 0.85))
 
-            simular_tab_popup= Popup(title="PRODUZIR",content=layout_simular_tab)
-            simular_tab_popup.open()
-
+                layout_simular_tab_full_popup.open()
+            except Exception as e:
+                print("exception 12: ", e)
 
         ##############side bar###############
         def producao_view(instance):
