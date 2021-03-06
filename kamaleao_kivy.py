@@ -1,27 +1,30 @@
+import math
+import os
+import sqlite3
+import subprocess
+import sys
+from subprocess import PIPE, Popen
+
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from kivy.app import App
+from kivy.clock import Clock
+from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
+from kivy.lang import Builder
 from kivy.uix.button import Button
+from kivy.uix.colorpicker import ColorPicker
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
-from kivy.uix.popup import Popup
+from kivy.uix.image import Image
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
-from subprocess import Popen, PIPE
-from kivy.graphics import Color, Rectangle
-import matplotlib.pyplot as plt
-from kivy.uix.image import Image
-import matplotlib
-
-import sqlite3
-from kivy.uix.colorpicker import ColorPicker
-from kivy.clock import Clock
-from kivy.lang import Builder
-from kivy.core.window import Window
-from kivy.utils import get_color_from_hex
-from kivy.uix.floatlayout import FloatLayout
-import pandas as pd
-import os, sys, subprocess
 from kivy.uix.togglebutton import ToggleButton
-import numpy as np
+from kivy.utils import get_color_from_hex
 
 # COLORS #
 
@@ -87,9 +90,11 @@ class KamaleãoApp(App):
 
     def build(self):
 
+        float_layout = FloatLayout(size=(Window.size[0], Window.size[1]))
+
         Window.clearcolor = (200 / 255, 210 / 255, 197 / 255, 1)
 
-        layout = GridLayout(cols=2, col_force_default=True, col_default_width=150)
+        layout = GridLayout(cols=2)
 
         # pigmentos_table = """
 
@@ -103,23 +108,40 @@ class KamaleãoApp(App):
         # """
 
         def ver_tabela(instance):
+            # ########## VER TABELA É O LAYOUT DOS BTTS ######### #
+
             def enviar_db(nome):
+                # ########## ENVIAR_DB É O LAYOUT APÓS ABRIR UM BTT ######### #
+
                 def enviar_db_de_vdd(instance):
+                    # ########## É A ACÃO DO BOTAO DE ENVIAR(adiciona no banco de dados o valor) ######### #
+
                     def refresh_tabela_estoque():
                         tela_adicionar_estoque_popup.dismiss()
                         aba_estoque_pg.dismiss()
                         ver_tabela(instance)
 
+                    # ########## COMEÇO ENVIAR_DB_DE_VDD ######### #
+
+                    # separar o % do nome #
                     tabela = [nome.split("\n")[0]]
                     nome_do_produto = nome.split("\n")[0]
+                    # separar o % do nome #
 
+                    # verificação de input vazio e enviar 0 quando vazio #
                     if quantidade_adicionar.text == "." or quantidade_adicionar.text == "":
                         quantidade_adicionar.text = "0"
+                    # verificação de input vazio e enviar 0 quando vazio #
+
+                    # lógica de do db estoque_atual#
                     cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", tabela)
                     estoque_antigo = cursor_kamaleao.fetchone()[0]
                     estoque_novo = estoque_antigo + float(quantidade_adicionar.text)
                     tabela_db = [estoque_novo, nome_do_produto]
                     conn_kamaleao.execute("UPDATE materia_prima set estoque_atual = ? WHERE nome = ?", tabela_db)
+                    # lógica de do db estoque_atual#
+
+                    # lógica db porcento #
                     cursor_kamaleao.execute("SELECT estoque_atual, estoque_maximo FROM materia_prima WHERE nome = ?",
                                             tabela)
                     result = cursor_kamaleao.fetchone()
@@ -130,14 +152,20 @@ class KamaleãoApp(App):
                     conn_kamaleao.execute("UPDATE materia_prima set porcento = ? WHERE nome = ?",
                                           tabela_update_porcento)
 
-                    # porcento = estoque_novo/
+                    # lógica db porcento #
+
                     refresh_tabela_estoque()
-                    time_con = cursor_kamaleao.execute("SELECT datetime('now', 'localtime')")
+
+                    # lógica db fluxo_db #
+                    cursor_kamaleao.execute("SELECT datetime('now', 'localtime')")
                     time_value = cursor_kamaleao.fetchone()[0]
                     relatorios_tabela = [nome_do_produto, float(quantidade_adicionar.text), time_value]
                     conn_kamaleao.execute("INSERT INTO relatorios_fluxo(produto,quantidade,dia) VALUES (?,?,?)",
                                           relatorios_tabela)
 
+                    # lógica db fluxo_db #
+
+                # ########## COMEÇO ENVIAR_DB ######### #
                 tela_adicionar_estoque = GridLayout(rows=2)
                 quantidade_adicionar = TextInput(multiline=False, input_filter='float')
                 tela_adicionar_estoque_cima = GridLayout(cols=2)
@@ -155,15 +183,16 @@ class KamaleãoApp(App):
                                                      content=tela_adicionar_estoque, size_hint=[1, 0.5])
                 tela_adicionar_estoque_popup.open()
 
+            # ########## COMEÇO VER TABELA ######### #
+
             layout_tabela = GridLayout(rows=2)
             blocks = GridLayout(rows=5, spacing=20)
 
+            # GERADOR DE BTT DINAMICO##
             cursor_kamaleao.execute('''SELECT * from materia_prima''')
             result = cursor_kamaleao.fetchall()
             for i in result:
                 nome = i[0]
-                estoque_maximo = float(i[1])
-                estoque_atual = i[5]
                 percent = i[6]
                 cor = i[4].replace("[", '')
                 cor = cor.replace(']', '')
@@ -177,20 +206,32 @@ class KamaleãoApp(App):
                 btn.bind(on_release=lambda btn: enviar_db(btn.text))
                 blocks.add_widget(btn)
             layout_tabela.add_widget(blocks)
+            # GERADOR DE BTT DINAMICO##
 
-            aba_estoque_pg = Popup(title="ESTOQUE", content=layout_tabela, )
+            aba_estoque_pg = Popup(title="Estoque", content=layout_tabela)
             aba_estoque_pg.open()
 
         def forms(instance):
+            # TELA PARA ADICIONAR UMA NOVA FÓRMULA #
+
             def enviar_forms(instance):
+
+                # LÓGICA PARA ADICIONAR AO BD #
                 formula = {}
+
+                # validação de input #
+
                 for i in range(len(nome_das_materias_primas_iterate)):
                     if nome_das_materias_primas_iterate[i].text == "" or nome_das_materias_primas_iterate[
                         i].text == '.':
                         nome_das_materias_primas_iterate[i].text = '0'
 
+                    # validação de input #
+
+                    # meu amigo... isso aqui é pra adicionar uma fórmula no formato de DICT#
                     formula[nomes_mas_materias_primas_string[i]] = nome_das_materias_primas_iterate[i].text
 
+                # pra depois tranformar o dict em string pra adicionar no banco de dados
                 formula_inteira = str(formula)
                 formula_db = [nome_da_formula.text, formula_inteira]
                 try:
@@ -201,6 +242,8 @@ class KamaleãoApp(App):
                 except:
                     print("fórmula já existente")
 
+            # COMEÇO DA TELA PARA ADICIONAR UMA NOVA FÓRMULA #
+
             formulas_layout = GridLayout(cols=2)
             formulas_layout.add_widget(Label(text="Nome"))
             nome_da_formula = TextInput(multiline=False)
@@ -209,7 +252,11 @@ class KamaleãoApp(App):
             result = cursor_kamaleao.fetchall()
             nome_das_materias_primas_iterate = []
             nomes_mas_materias_primas_string = []
-            # pegar todos os nomes
+            # velho, isso aqui foi pra salvar cada TextInput em uma variável diferente
+            # esse globlas ai cria um nome de variável dinamicamente
+            # depois eu adicionei essas variáveis em uma lista
+            # que é essa aqui nome_das_materias_primas_iterate
+
             for i in result:
                 for z in i:
                     formulas_layout.add_widget(Label(text=str(z)))
@@ -217,7 +264,10 @@ class KamaleãoApp(App):
                     globals()[str(z)] = TextInput(multiline=False, input_filter='float')
                     nome_das_materias_primas_iterate.append(globals()[str(z)])
                     formulas_layout.add_widget(globals()[z])
-
+            #
+            #
+            #
+            #
             formulas_layout_btt = Button(text="enviar")
 
             formulas_layout_btt.bind(on_press=enviar_forms)
@@ -227,9 +277,20 @@ class KamaleãoApp(App):
             formulas_popup.open()
 
         def simular_tab(instance):
+
+            # SIMULAR TAB É A TELA DE PRODUÇÃO
+
             def on_text(instance, value):
+
+                # on_text é pra sempre pegar o valor do text input quando existe mudança
+
                 def print_it(instance, value_label):
+                    # esse print_it é pra quando o label que é resultado de pesquisa for clickado
+                    # tranformar o texto do TextInput nele
                     nome_da_formula.text = value_label
+
+                # Lógica de pesquisa, quando digitar algo no  TextInput
+                # Vão aparecer 5 valores que podem ser o q você quer
 
                 esqueda_baixo_area_esquerda.clear_widgets()
                 cursor_kamaleao.execute("SELECT nome FROM formulas WHERE nome LIKE '{}%'".format(value))
@@ -240,62 +301,95 @@ class KamaleãoApp(App):
                         label.bind(on_ref_press=print_it)
                         esqueda_baixo_area_esquerda.add_widget(label)
 
-            # precisa ser declarado antes do botão pq se nao toda vez reseta
+            # precisam ser declarados antes do botão pq se nao toda vez reseta
+            # e não pode pois a ideia é somar
             formula_formatada = {}
             esqueda_baixo_area_direita_tabela = []
 
             def adicionar_cor(instance):
+                # mano, isso aqui foi dificil
+
+                # validar input, não pode ser 0, é isso.
+                # em alguma hora eu multiplico, divido, aí 0 da mt ruim
+
                 if quantidade.text == "" or quantidade.text == "." or quantidade.text == "0":
                     quantidade.text = "1"
-                # insert relatŕoios
-                # conn_kamaleao.execute("INSERT INTO relatorios_fluxo(produto,quantidade,dia) VALUES (?,?,?)",relatorios_tabela)
+
+                ######## pegar informações #########
 
                 nome = [nome_da_formula.text]
+                # limpar resultado para não ficar adicionando um atrás do outro
                 direita_tab_content.clear_widgets()
+
+                # esse aqui é a tabela de fórmulas já adicionadas
                 esqueda_baixo_area_direita.clear_widgets()
-                quantidade_que_multiplica_formula = int(quantidade.text)
+
+                # float pq vai que ele quer fazer sla um número quebrado
+                quantidade_que_multiplica_formula = float(quantidade.text)
+
+                ######## pegar informações #########
 
                 cursor_kamaleao.execute("SELECT * FROM formulas WHERE nome = ?", nome)
                 try:
+                    ###### aqui a gente limpa o dict que foi transformado em str #####
                     formula_completa = cursor_kamaleao.fetchone()[1]
+                    print("aqui a gente limpa o dict que foi transformado em str ", formula_completa)
                     formula_completa = formula_completa.replace("{", '')
                     formula_completa = formula_completa.replace("}", '')
                     formula_completa = formula_completa.translate({ord("'"): None})
+                    ###### e transforma ele em uma lista no formato nome da cor : valor #####
                     formula_completa = formula_completa.split(',')
+
+                    ## Agora separa essas listas, para pegar o Nome e o valor de cada matéria prima ##
                     for i in formula_completa:
                         i = i.strip()
                         i = i.split(":")
+
+                    ## aqui, soma no dict um valor se a matéria prima já estiver dentro do dict ##
+                    ## ou adiciona no dict uma nova matéria prima com seu valor a ser descontado  ##
+
                         if i[0] in formula_formatada:
                             formula_formatada[i[0]] += float(i[1]) * quantidade_que_multiplica_formula
                         else:
                             formula_formatada[i[0]] = float(i[1]) * quantidade_que_multiplica_formula
+
+                    # agora cria outro loop para mostrar como os valores ficariam após a adição de tal formula #
+
                     for i in formula_formatada:
                         nome = [i]
+
 
                         cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
                         novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
                         direita_tab_content.add_widget(Label(text=str(i)))
                         direita_tab_content.add_widget(Label(text=str(novo_valor)))
-
-                        print(novo_valor)
+                    # aqui adiciona na tela o nome da fórmula e a quantidade de vezes que ela foi adicionada #
                     esqueda_baixo_area_direita_tabela.append([nome_da_formula.text, quantidade_que_multiplica_formula])
                     for i in esqueda_baixo_area_direita_tabela:
                         esqueda_baixo_area_direita.add_widget(Label(text="{}   x   {}".format(i[0], i[1])))
                 except:
+                    # aqui se deu ruim ainda tem que Criar uma tela pra avisar que deu.
                     print("NOME NÃO EXISTE NO BANCO DE DADOS")
-                    # ('teste', 789.0)
-                    # ('teste 1', 380.0)
-                    # ('teste 2', 1500.0)
 
             def produzir_func(instance):
+                # essa é a função do botão de produzir#
+                # primeira coisa que tem que fazer é declarar uma variável booleana#
+                # pra só produzir se todos os requirements forem satisfeitos
+
                 valido = True
+
+                # Verifica se algum valor é menor que 0
+
                 for i in formula_formatada:
                     nome = [i]
                     cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
                     novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
                     if novo_valor < 0:
+                        # se existir, o valido fica falso e não permite a produção #
                         valido = False
                 if valido:
+
+                    # Se válido, update o estoque atual de matéria prima #
                     for i in formula_formatada:
                         nome = [i]
                         cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
@@ -303,6 +397,8 @@ class KamaleãoApp(App):
                         atualizar_tabela = [novo_valor, i]
                         conn_kamaleao.execute("UPDATE materia_prima SET estoque_atual = ? WHERE nome = ?",
                                               atualizar_tabela)
+
+                        # e atualiza a porcentagem #
 
                         cursor_kamaleao.execute("SELECT estoque_atual,estoque_maximo FROM materia_prima where nome = ?",
                                                 nome)
@@ -312,6 +408,8 @@ class KamaleãoApp(App):
                         tabela_update_porcento = [(atual / maxim) * 100, nome[0]]
                         conn_kamaleao.execute("UPDATE materia_prima set porcento = ? WHERE nome = ?",
                                               tabela_update_porcento)
+
+                        # e aqui atualiza o relatório #
 
                         ####### RELATORIO ########
                         cursor_kamaleao.execute("SELECT datetime('now', 'localtime')")
@@ -323,6 +421,8 @@ class KamaleãoApp(App):
                                                   valores_relatorios_producao)
                         esqueda_baixo_area_direita_tabela.clear()
                 else:
+                    # aqui se o válido for falso, a gente pega os valores falsos e transforma#
+                    #  ou tenta trasnformar em um Pedido de compra #
                     valores_negativos = []
 
                     for i in formula_formatada:
@@ -333,7 +433,7 @@ class KamaleãoApp(App):
                             valores_negativos.append("{} : {}".format(i, novo_valor))
                     print(valores_negativos)
 
-                # RESOLVER RELATORIO DE FORMULAS !
+            # COMEÇO DA TELA DE SIMULAÇÃO
 
             layout_simular_tab = GridLayout(cols=2)
 
@@ -397,19 +497,21 @@ class KamaleãoApp(App):
             heigt_calc = layout.size[1] / 1.73
             print(width_calc, heigt_calc)
 
+            menu_producao_layout = GridLayout(cols=3)
+
             menu_estoque_btt = Button(background_normal='img/Botao_estoque.png', color=(0, 0, 0, 0),
                                       pos_hint={"x": 1, "y": 1}, size_hint=(None, None), width=width_calc,
                                       height=heigt_calc,
                                       background_down='img/Botao_estoque.png', border=(0, 0, 0, 0))
             menu_estoque_btt.bind(on_press=ver_tabela)
-            menu.add_widget(menu_estoque_btt)
+            menu_producao_layout.add_widget(menu_estoque_btt)
 
             menu_prod_btt = Button(background_normal='img/Simular.png', color=(0, 0, 0, 0), pos_hint={"x": 1, "y": 1},
                                    size_hint=(None, None), width=width_calc, height=heigt_calc,
                                    background_down='img/Simular.png',
                                    border=(0, 0, 0, 0))
             menu_prod_btt.bind(on_press=simular_tab)
-            menu.add_widget(menu_prod_btt)
+            menu_producao_layout.add_widget(menu_prod_btt)
 
             menu_forms_btt = Button(background_normal='img/Gerenciar.png', color=(0, 0, 0, 0),
                                     pos_hint={"x": 1, "y": 1},
@@ -418,42 +520,59 @@ class KamaleãoApp(App):
                                     border=(0, 0, 0, 0))
             menu_forms_btt.bind(on_press=forms)
 
-            menu.add_widget(menu_forms_btt)
+            menu_producao_layout.add_widget(menu_forms_btt)
+
+            menu.add_widget(menu_producao_layout)
 
             ###### menu #######
 
         def estoque_view(instance):
+
+            # ESSA AQUI É A TELA DE ESTOQUE #
+
             def gerenciar_materiaPrima_func(instance):
+                # ESSA AQUI É A DE GERENCIAR, EXISTEM 3 TELAS DENTRO DELA #
+                # ADICIONAR, REMOVER E MODIFICAR, BASICAMENTE O CRUDE #
+
+
                 def adicionar_materiaPrima_func(instance):
+                    # essa daqui perceptivelmente, adiciona #
+
+                    # isso aqui é pro roda de cores funcionar #
                     def on_color(instance, value):
                         pass  # or instance.color
 
+
                     def adicionar_no_database(instance):
+                        if estoque_atual.text == '0' or estoque_atual.text == "." or estoque_atual.text=="":
+                            estoque_atual.text="1"
+
+                        if estoque_maximo.text == '0' or estoque_maximo.text == "." or estoque_maximo.text == "":
+                            estoque_maximo.text = "1"
+                        # função do botao adicionar ao banco de dados#
+
+                        # e aqui é a lógica para adicionar no banco de dados#
+
                         lista_adicionar_materiaPrima_btt = [nome.text, estoque_maximo.text, estoque_minimo.text,
                                                             estoque_emergencial.text, str(clr_picker.color),
                                                             estoque_atual.text, float(estoque_atual.text) / float(
                                 estoque_maximo.text) * 100]
-                        for i in range(len(lista_adicionar_materiaPrima_btt)):
+                        # validador de input #
 
+                        for i in range(len(lista_adicionar_materiaPrima_btt)):
                             if lista_adicionar_materiaPrima_btt[i] == "" or lista_adicionar_materiaPrima_btt[i] == ".":
                                 lista_adicionar_materiaPrima_btt[i] = "1"
-
-                            print(lista_adicionar_materiaPrima_btt[i])
-
                         try:
+                            # adicionar no materias primas db#
                             cursor_kamaleao.execute("INSERT INTO materia_prima VALUES(?,?,?,?,?,?,?)",
                                                     lista_adicionar_materiaPrima_btt)
-                            conn_kamaleao.commit()
-                            cursor_kamaleao.execute("SELECT * FROM materia_prima")
-                            materias_primas_bd = cursor_kamaleao.fetchall()
-                            for i in materias_primas_bd:
-                                print("i[1]= " + str(i[1]))
-                                print("i 0= " + str(i[0]))
-
+                            # conn_kamaleao.commit()
                         except:
                             print("Nome já está no db")
 
                     clr_picker = ColorPicker()
+
+                    # começo do layout para adicionar matérios primas #
                     layout_adicionar_materiaPrima = GridLayout(cols=2)
                     layout_adicionar_materiaPrima.add_widget(Label(text="Nome", size_hint=(1, 0.2)))
                     nome = TextInput(multiline=False, size_hint=(1, 0.2))
@@ -492,13 +611,19 @@ class KamaleãoApp(App):
                     layout_adicionar_materiaPrima_popup.open()
 
                 def modificar_valores_materiaPrima_func(instance):
+                    # tela modificar valores
                     def modificar_valores_de_um(nome_botao, estoque_maximo, estoque_minimo, estoque_emergencial,
                                                 estoque_atual):
+                        # aqui é a tela dentro de um botão
+
+                        #isso aqui é pra cor funcionar
                         def on_color(instance, value):
                             pass  # or instance.color
 
                         def modificar_valores_materiaprima_db(instance):
+                            # essa é função para efetivamente modificar valores
                             def refresh_mudar_valores():
+
                                 layout_modificar_valores_popup.dismiss()
                                 aba_modificar_valores.dismiss()
                                 modificar_valores_materiaPrima_func(instance)
@@ -506,10 +631,13 @@ class KamaleãoApp(App):
                             tabela_pro_execute = [estoque_maximo.text, estoque_minimo.text,
                                                   estoque_emergencial.text, str(clr_picker.color),
                                                   estoque_atual.text, nome_botao]
+
+                            # validar TextInput
                             for n in range(len(tabela_pro_execute)):
                                 if tabela_pro_execute[n] == "" or tabela_pro_execute[n] == ".":
                                     tabela_pro_execute[n] = "0.1"
 
+                            # modificar materia prima
                             print(tabela_pro_execute)
                             nome_pra_teste = [nome_botao]
                             cursor_kamaleao.execute("SELECT * from materia_prima WHERE nome =? ", nome_pra_teste)
@@ -519,6 +647,8 @@ class KamaleãoApp(App):
                                 "UPDATE materia_prima SET estoque_maximo = ?,estoque_minimo =?,estoque_emergencial=?,"
                                 "rgb=?,estoque_atual=? WHERE nome = ?",
                                 tabela_pro_execute)
+
+                            # modificar porcento
 
                             cursor_kamaleao.execute(
                                 "SELECT estoque_atual,estoque_maximo FROM materia_prima where nome = ?", nome_pra_teste)
@@ -535,7 +665,7 @@ class KamaleãoApp(App):
                             refresh_mudar_valores()
 
                         clr_picker = ColorPicker()
-
+                        #  COMEÇO aqui é a tela dentro de um botão
                         nome_pra_teste = [nome_botao]
                         cursor_kamaleao.execute("SELECT * from materia_prima WHERE nome =? ", nome_pra_teste)
                         a = cursor_kamaleao.fetchone()
@@ -577,9 +707,10 @@ class KamaleãoApp(App):
 
                         layout_modificar_valores_popup = Popup(
                             title="MODIFICAR VALORES DA MATÉRIA PRIMA : " + nome_botao,
-                            content=layout_modificar_valores, size_hint=(0.8, 0.8))
+                            content=layout_modificar_valores, size_hint=(1, 1))
                         layout_modificar_valores_popup.open()
 
+                    # COMEÇO tela modificar valores
                     layou_modificar_valores_materiaPrima = GridLayout(cols=4)
 
                     cursor_kamaleao.execute('''SELECT * from materia_prima''')
@@ -611,6 +742,7 @@ class KamaleãoApp(App):
                     aba_modificar_valores.open()
 
                 def remover_materiaPrima_func(instance):
+                    # segue o mesmo padrão dos outros só que com delete
                     def remover_materiaPrima_db(nome_btt):
                         def refresh_delete_tabela():
                             aba_remover_materiaPrima.dismiss()
@@ -668,6 +800,8 @@ class KamaleãoApp(App):
             def adicionar_ao_estoque_func(instance):
                 print(instance.text)
 
+            # COMEÇO DA TELA DE ESTOQUE #
+
             menu.clear_widgets()
             estoque_menu_layout = GridLayout(cols=2)
             gerenciar_materiaPrima_btt = Button(text="Gerenciar matéra prima",
@@ -690,7 +824,6 @@ class KamaleãoApp(App):
             menu.clear_widgets()
             df = pd.read_sql_query("SELECT * from relatorios_fluxo", conn_kamaleao)
 
-
             relatorios_menu_layout = GridLayout(cols=2)
 
             df.to_excel(r'teste_relatorios_fluxo.xlsx', index=False)
@@ -702,36 +835,29 @@ class KamaleãoApp(App):
 
             cursor_kamaleao.execute("SELECT * FROM materia_prima")
             cores = cursor_kamaleao.fetchall()
-            # for i in cores:
-            #    nome_da_cor = i[0]
-            #    estoque_maximo = i[1]
-            #    estoque_minimo = i[2]
-            #    estoque_emergencial = i[3]
-            #    cor = i[4]
-            #    estoque_atual = i[5]
-            #    array_2d_cores.append([nome_da_cor,estoque_maximo,estoque_minimo,estoque_emergencial,cor,estoque_atual])
-            # print(array_2d_cores)
 
-            # ax =df.plot.bar(x=None, y=None, rot=0)
-            # print(ax)
-            df = pd.read_sql_query("SELECT nome,porcento,rgb from materia_prima", conn_kamaleao, )
+            # ############ GRÁFICO 1 ############### #
+
+            cursor_kamaleao.execute("SELECT * FROM materia_prima")
+            tamanho = math.ceil(len(cursor_kamaleao.fetchall()) / 2)
+
+            print(tamanho)
+            df = pd.read_sql_query("SELECT nome,porcento,rgb from materia_prima LIMIT {}".format(tamanho),
+                                   conn_kamaleao)
             df.reset_index(drop=True, inplace=True)
             nomes = df["nome"]
             porcento = df["porcento"]
             cursor_kamaleao.execute('''SELECT rgb from materia_prima''')
             result = cursor_kamaleao.fetchall()
 
-
-
-
-            ax = df.plot.bar(x='nome', y='porcento', rot=0,figsize=(8,0.8))
+            ax = df.plot.bar(x='nome', y='porcento', rot=0, figsize=(20, 1.8))
 
             childrenLS = ax.get_children()
             barlist = filter(lambda x: isinstance(x, matplotlib.patches.Rectangle), childrenLS)
-            n=0
-            cursor_kamaleao.execute('''SELECT * from materia_prima''')
+            n = 0
+            cursor_kamaleao.execute("SELECT * from materia_prima LIMIT {}".format(tamanho))
             result = cursor_kamaleao.fetchall()
-            cores_pro_grafico =[]
+            cores_pro_grafico = []
 
             for i in result:
                 cor = i[4].replace("[", '')
@@ -742,31 +868,98 @@ class KamaleãoApp(App):
                 cor = tuple(cor)
                 cores_pro_grafico.append(cor)
 
-            n=0
+            n = 0
             for i in barlist:
                 try:
-                    cor =cores_pro_grafico[n]
+                    cor = cores_pro_grafico[n]
                     i.set_color(cor)
                     print("try:")
 
 
                 except Exception as e:
                     print(e)
-                n+=1
+                n += 1
 
+            for i, v in enumerate(porcento):
+                ax.text(i - .25,
+                        v / porcento[i] + 10,
+                        round(porcento[i], 1),
+                        fontsize=11,
+                        color="gray",
+                        fontweight='bold'
+                        )
+            ax.get_legend().remove()
+            plt.xticks(rotation=45, ha="right")
 
-
-
-
-
-
+            plt.ylim(0, 100)
             ax.plot()
-            plt.savefig("testando_plot")
-            plt.close()
+            plt.savefig("testando_plot", bbox_inches='tight')
 
-            relatorios_menu_layout.add_widget(Image(source="testando_plot.png",size_hint=(None,None),size=(1000,1000)))
+            plt.close()
+            menu.add_widget(Image(source="testando_plot.png", size_hint=(None, None), size=(Window.size[0] - 150, 250)))
+            # ############ GRÁFICO 1 ############### #
+
+            # ############ GRÁFICO 2 ############### #
+
+            df_2 = pd.read_sql_query(
+                "SELECT nome,porcento,rgb from materia_prima LIMIT {} OFFSET {}".format(tamanho, tamanho),
+                conn_kamaleao)
+            df_2.reset_index(drop=True, inplace=True)
+            cursor_kamaleao.execute('''SELECT rgb from materia_prima''')
+            result = cursor_kamaleao.fetchall()
+
+            ax = df_2.plot.bar(x='nome', y='porcento', rot=0, figsize=(20, 1.8))
+            porcento_2 = df_2["porcento"]
+
+            childrenLS = ax.get_children()
+            barlist = filter(lambda x: isinstance(x, matplotlib.patches.Rectangle), childrenLS)
+            n = 0
+            cursor_kamaleao.execute("SELECT * from materia_prima LIMIT {} OFFSET {}".format(tamanho, tamanho))
+            result = cursor_kamaleao.fetchall()
+            cores_pro_grafico = []
+
+            for i in result:
+                cor = i[4].replace("[", '')
+                cor = cor.replace(']', '')
+                cor = cor.split(",")
+                for z in range(len(cor)):
+                    cor[z] = round(float(cor[z]), 2)
+                cor = tuple(cor)
+                cores_pro_grafico.append(cor)
+
+            n = 0
+            for i in barlist:
+                try:
+                    cor = cores_pro_grafico[n]
+                    i.set_color(cor)
+                    print("try:")
+
+
+                except Exception as e:
+                    print(e)
+                n += 1
+
+            for i, v in enumerate(porcento_2):
+                ax.text(i - .25,
+                        v / porcento_2[i] + 10,
+                        round(porcento_2[i], 1),
+                        fontsize=11,
+                        color="gray",
+                        fontweight='bold'
+                        )
+            ax.get_legend().remove()
+            plt.xticks(rotation=45, ha="right")
+
+            plt.ylim(0, 100)
+            ax.plot()
+            plt.savefig("testando_plot_2", bbox_inches='tight')
+
+            plt.close()
+            menu.add_widget(
+                Image(source="testando_plot_2.png", size_hint=(None, None), size=(Window.size[0] - 150, 250)))
 
             menu.add_widget(relatorios_menu_layout)
+            # ############ GRÁFICO 2 ############### #
 
         def settings_view(instance):
             menu.clear_widgets()
@@ -775,7 +968,7 @@ class KamaleãoApp(App):
             settings_menu_layout.add_widget(Label(text="Settings View"))
             menu.add_widget(settings_menu_layout)
 
-        side_bar = GridLayout(cols=1)
+        side_bar = GridLayout(cols=1, size_hint_x=None, width=150)
 
         side_bar.add_widget(Label(text="Kamaleão", size_hint=(None, None), height=220, width=150))
 
@@ -809,7 +1002,7 @@ class KamaleãoApp(App):
         ##############side bar #####################
 
         ###### menu #######
-        menu = GridLayout(cols=3, padding=[85, 150, 10, 30], spacing=50)
+        menu = GridLayout(cols=1, size_hint_x=None, width=Window.size[0] - 150)
 
         layout.add_widget(menu)
 
@@ -818,7 +1011,9 @@ class KamaleãoApp(App):
             self.rect = Rectangle(size=[150, 1500],
                                   pos=side_bar.pos)
         # process = Popen(['python3', 'graphs.py'], stdout=PIPE, stderr=PIPE)
-        return layout
+
+        float_layout.add_widget(layout)
+        return float_layout
 
 
 if __name__ == '__main__':
