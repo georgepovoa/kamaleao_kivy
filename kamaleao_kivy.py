@@ -70,6 +70,22 @@ dia TEXT NOT NULL,
 
 """
 
+createTable_relatorios_sales_rate= """
+
+CREATE TABLE relatorio_saida_materia_prima(
+
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+nome_mp TEXT NOT NULL,
+quantidade_saida REAL NOT NULL,
+sales_rate REAL NOT NULL,
+data TEXT NOT NULL
+)
+
+
+"""
+
+
+
 conn_kamaleao = sqlite3.connect('kamaleao.db')
 cursor_kamaleao = conn_kamaleao.cursor()
 
@@ -78,6 +94,7 @@ cursor = conn.cursor()
 
 conn_forms = sqlite3.connect('forms.db')
 cursor_forms = conn_forms.cursor()
+
 
 
 # tempo em sqlite
@@ -372,6 +389,7 @@ class KamaleãoApp(App):
                     print("NOME NÃO EXISTE NO BANCO DE DADOS")
 
             def produzir_func(instance):
+                print(formula_formatada)
                 # essa é a função do botão de produzir#
                 # primeira coisa que tem que fazer é declarar uma variável booleana#
                 # pra só produzir se todos os requirements forem satisfeitos
@@ -411,14 +429,59 @@ class KamaleãoApp(App):
 
                         # e aqui atualiza o relatório #
 
-                        ####### RELATORIO ########
+                        ####### RELATORIO_fluxo ########
                         cursor_kamaleao.execute("SELECT datetime('now', 'localtime')")
                         time_value = cursor_kamaleao.fetchone()[0]
-                        for i in range(len(esqueda_baixo_area_direita_tabela)):
-                            valores_relatorios_producao = [esqueda_baixo_area_direita_tabela[i][0],
-                                                           esqueda_baixo_area_direita_tabela[i][1], time_value]
+                        for z in range(len(esqueda_baixo_area_direita_tabela)):
+                            valores_relatorios_producao = [esqueda_baixo_area_direita_tabela[z][0],
+                                                           esqueda_baixo_area_direita_tabela[z][1], time_value]
                             conn_kamaleao.execute("INSERT INTO relatorios_fluxo(produto,quantidade,dia) VALUES (?,?,?)",
                                                   valores_relatorios_producao)
+                        ## e aqui relatório sales_rate ##
+
+                        try:
+                            cursor_kamaleao.execute("SELECT date('now', 'localtime')")
+
+                            date = cursor_kamaleao.fetchone()[0]
+                            verificar_se_ja_existe = [i,date]
+                            cursor_kamaleao.execute("SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",verificar_se_ja_existe)
+                            achou = cursor_kamaleao.fetchone()[0]
+                            cursor_kamaleao.execute("SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",verificar_se_ja_existe)
+                            todas_infos = cursor_kamaleao.fetchall()
+                            print(todas_infos)
+                            nome_mp = todas_infos[0][1]
+                            quantidade = todas_infos[0][2]
+                            print("Quantidade antes: ",quantidade)
+                            quantidade = todas_infos[0][2]+ formula_formatada.get(i)
+                            print("Quantidade depois: ", quantidade)
+                            sales_rate = todas_infos[0][3]
+
+                            # ta dando erroa qui
+                            try:
+                                conn_kamaleao.execute("""
+                                UPDATE relatorio_saida_materia_prima SET quantidade_saida = {}  WHERE nome_mp = ? AND data = ?
+                                """.format(quantidade,achou),verificar_se_ja_existe)
+                            except Exception as e:
+                                print(e)
+
+                            print("achou",achou)
+
+
+                        except:
+
+                            print(date)
+                            tabela_pra_saleRate = [i,formula_formatada.get(i),date]
+                            print(tabela_pra_saleRate)
+                            conn_kamaleao.execute("""
+                            INSERT INTO relatorio_saida_materia_prima(
+                            nome_mp,quantidade_saida,sales_rate,data)
+                            VALUES(?,?,0,?)
+                            """,tabela_pra_saleRate)
+                            cursor_kamaleao.execute("SELECT * FROM relatorio_saida_materia_prima")
+                            print(cursor_kamaleao.fetchall())
+
+
+
                         esqueda_baixo_area_direita_tabela.clear()
                 else:
                     # aqui se o válido for falso, a gente pega os valores falsos e transforma#
@@ -850,7 +913,7 @@ class KamaleãoApp(App):
             cursor_kamaleao.execute('''SELECT rgb from materia_prima''')
             result = cursor_kamaleao.fetchall()
 
-            ax = df.plot.bar(x='nome', y='porcento', rot=0, figsize=(20, 1.8))
+            ax = df.plot.bar(x='nome', y='porcento', rot=0, figsize=(18, 1.8))
 
             childrenLS = ax.get_children()
             barlist = filter(lambda x: isinstance(x, matplotlib.patches.Rectangle), childrenLS)
@@ -882,7 +945,7 @@ class KamaleãoApp(App):
 
             for i, v in enumerate(porcento):
                 ax.text(i - .25,
-                        v / porcento[i] + 10,
+                        v / porcento[i] + 50,
                         round(porcento[i], 1),
                         fontsize=11,
                         color="gray",
@@ -892,6 +955,7 @@ class KamaleãoApp(App):
             plt.xticks(rotation=45, ha="right")
 
             plt.ylim(0, 100)
+            ax.set(xlabel='')
             ax.plot()
             plt.savefig("testando_plot", bbox_inches='tight')
 
@@ -908,7 +972,7 @@ class KamaleãoApp(App):
             cursor_kamaleao.execute('''SELECT rgb from materia_prima''')
             result = cursor_kamaleao.fetchall()
 
-            ax = df_2.plot.bar(x='nome', y='porcento', rot=0, figsize=(20, 1.8))
+            ax = df_2.plot.bar(x='nome', y='porcento', rot=0, figsize=(18, 1.8))
             porcento_2 = df_2["porcento"]
 
             childrenLS = ax.get_children()
@@ -951,7 +1015,13 @@ class KamaleãoApp(App):
             plt.xticks(rotation=45, ha="right")
 
             plt.ylim(0, 100)
+
+            ax.set(xlabel='')
+            # plt.setp(ax1.get_xticklabels(), visible=False)
+            # plt.setp(ax1.get_yticklabels(), visible=False)
+            ax.tick_params(axis='both', which='both', length=0)
             ax.plot()
+
             plt.savefig("testando_plot_2", bbox_inches='tight')
 
             plt.close()
