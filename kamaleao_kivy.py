@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from kivy.app import App
-from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.lang import Builder
@@ -24,7 +23,6 @@ from kivy.uix.popup import Popup
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.uix.togglebutton import ToggleButton
-from kivy.utils import get_color_from_hex
 
 # COLORS #
 
@@ -70,7 +68,7 @@ dia TEXT NOT NULL,
 
 """
 
-createTable_relatorios_sales_rate= """
+createTable_relatorios_sales_rate = """
 
 CREATE TABLE relatorio_saida_materia_prima(
 
@@ -84,8 +82,6 @@ data TEXT NOT NULL
 
 """
 
-
-
 conn_kamaleao = sqlite3.connect('kamaleao.db')
 cursor_kamaleao = conn_kamaleao.cursor()
 
@@ -94,7 +90,6 @@ cursor = conn.cursor()
 
 conn_forms = sqlite3.connect('forms.db')
 cursor_forms = conn_forms.cursor()
-
 
 
 # tempo em sqlite
@@ -265,7 +260,7 @@ class KamaleãoApp(App):
             formulas_layout.add_widget(Label(text="Nome"))
             nome_da_formula = TextInput(multiline=False)
             formulas_layout.add_widget(nome_da_formula)
-            cursor_kamaleao.execute("SELECT nome FROM materia_prima")
+            cursor_kamaleao.execute("SELECT nome FROM materia_prima ORDER BY nome ASC")
             result = cursor_kamaleao.fetchall()
             nome_das_materias_primas_iterate = []
             nomes_mas_materias_primas_string = []
@@ -362,8 +357,8 @@ class KamaleãoApp(App):
                         i = i.strip()
                         i = i.split(":")
 
-                    ## aqui, soma no dict um valor se a matéria prima já estiver dentro do dict ##
-                    ## ou adiciona no dict uma nova matéria prima com seu valor a ser descontado  ##
+                        ## aqui, soma no dict um valor se a matéria prima já estiver dentro do dict ##
+                        ## ou adiciona no dict uma nova matéria prima com seu valor a ser descontado  ##
 
                         if i[0] in formula_formatada:
                             formula_formatada[i[0]] += float(i[1]) * quantidade_que_multiplica_formula
@@ -374,7 +369,6 @@ class KamaleãoApp(App):
 
                     for i in formula_formatada:
                         nome = [i]
-
 
                         cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
                         novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
@@ -443,44 +437,77 @@ class KamaleãoApp(App):
                             cursor_kamaleao.execute("SELECT date('now', 'localtime')")
 
                             date = cursor_kamaleao.fetchone()[0]
-                            verificar_se_ja_existe = [i,date]
-                            cursor_kamaleao.execute("SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",verificar_se_ja_existe)
+                            verificar_se_ja_existe = [i, date]
+                            cursor_kamaleao.execute(
+                                "SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",
+                                verificar_se_ja_existe)
                             achou = cursor_kamaleao.fetchone()[0]
-                            cursor_kamaleao.execute("SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",verificar_se_ja_existe)
+                            cursor_kamaleao.execute(
+                                "SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",
+                                verificar_se_ja_existe)
                             todas_infos = cursor_kamaleao.fetchall()
                             print(todas_infos)
                             nome_mp = todas_infos[0][1]
                             quantidade = todas_infos[0][2]
-                            print("Quantidade antes: ",quantidade)
-                            quantidade = todas_infos[0][2]+ formula_formatada.get(i)
+                            print("Quantidade antes: ", quantidade)
+                            quantidade = todas_infos[0][2] + formula_formatada.get(i)
                             print("Quantidade depois: ", quantidade)
                             sales_rate = todas_infos[0][3]
 
                             # ta dando erroa qui
+                            conn_kamaleao.execute("""
+                            UPDATE relatorio_saida_materia_prima SET quantidade_saida = {}  WHERE nome_mp = ? AND data = ?
+                            """.format(quantidade, achou), verificar_se_ja_existe)
+
+                            print("achou", achou)
                             try:
-                                conn_kamaleao.execute("""
-                                UPDATE relatorio_saida_materia_prima SET quantidade_saida = {}  WHERE nome_mp = ? AND data = ?
-                                """.format(quantidade,achou),verificar_se_ja_existe)
+                                cursor_kamaleao.execute(""" SELECT data,nome_mp FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?
+                                ORDER BY data ASC """, verificar_se_ja_existe)
+
+                                primeira_data = [cursor_kamaleao.fetchone()[0]]
+                                print("CHEGOU AQUI")
+                                print(primeira_data)
+
+                                cursor_kamaleao.execute("SELECT julianday('now') - julianday(?)", primeira_data)
+                                delta = round(cursor_kamaleao.fetchone()[0], 4) - 0.72
+                                nome_pra_sales_rate = [i]
+                                cursor_kamaleao.execute(
+                                    "SELECT SUM(quantidade_saida) FROM relatorio_saida_materia_prima WHERE nome_mp = ?",
+                                    nome_pra_sales_rate)
+                                soma = cursor_kamaleao.fetchone()[0]
+                                if delta < 1 and delta < 2:
+                                    delta = 1
+
+                                sales_rate = soma / delta
+
+                                print(sales_rate)
+                                update_sales_rate = [round(sales_rate, 2), i, date]
+
+                                conn_kamaleao.execute(
+                                    "UPDATE relatorio_saida_materia_prima SET sales_rate = ? WHERE nome_mp = ? AND data = ?",
+                                    update_sales_rate)
+
+
+
                             except Exception as e:
                                 print(e)
+                            # print(primeira_data)
 
-                            print("achou",achou)
+
 
 
                         except:
 
                             print(date)
-                            tabela_pra_saleRate = [i,formula_formatada.get(i),date]
+                            tabela_pra_saleRate = [i, formula_formatada.get(i), date]
                             print(tabela_pra_saleRate)
                             conn_kamaleao.execute("""
                             INSERT INTO relatorio_saida_materia_prima(
                             nome_mp,quantidade_saida,sales_rate,data)
                             VALUES(?,?,0,?)
-                            """,tabela_pra_saleRate)
+                            """, tabela_pra_saleRate)
                             cursor_kamaleao.execute("SELECT * FROM relatorio_saida_materia_prima")
                             print(cursor_kamaleao.fetchall())
-
-
 
                         esqueda_baixo_area_direita_tabela.clear()
                 else:
@@ -597,7 +624,6 @@ class KamaleãoApp(App):
                 # ESSA AQUI É A DE GERENCIAR, EXISTEM 3 TELAS DENTRO DELA #
                 # ADICIONAR, REMOVER E MODIFICAR, BASICAMENTE O CRUDE #
 
-
                 def adicionar_materiaPrima_func(instance):
                     # essa daqui perceptivelmente, adiciona #
 
@@ -605,10 +631,9 @@ class KamaleãoApp(App):
                     def on_color(instance, value):
                         pass  # or instance.color
 
-
                     def adicionar_no_database(instance):
-                        if estoque_atual.text == '0' or estoque_atual.text == "." or estoque_atual.text=="":
-                            estoque_atual.text="1"
+                        if estoque_atual.text == '0' or estoque_atual.text == "." or estoque_atual.text == "":
+                            estoque_atual.text = "1"
 
                         if estoque_maximo.text == '0' or estoque_maximo.text == "." or estoque_maximo.text == "":
                             estoque_maximo.text = "1"
@@ -679,7 +704,7 @@ class KamaleãoApp(App):
                                                 estoque_atual):
                         # aqui é a tela dentro de um botão
 
-                        #isso aqui é pra cor funcionar
+                        # isso aqui é pra cor funcionar
                         def on_color(instance, value):
                             pass  # or instance.color
 
@@ -884,6 +909,8 @@ class KamaleãoApp(App):
 
         def relatorios_view(instance):
 
+            # days_sales_inventory
+
             menu.clear_widgets()
             df = pd.read_sql_query("SELECT * from relatorios_fluxo", conn_kamaleao)
 
@@ -1028,8 +1055,44 @@ class KamaleãoApp(App):
             menu.add_widget(
                 Image(source="testando_plot_2.png", size_hint=(None, None), size=(Window.size[0] - 150, 250)))
 
-            menu.add_widget(relatorios_menu_layout)
             # ############ GRÁFICO 2 ############### #
+
+            metricas_layout = GridLayout(cols=2)
+
+            sales_rate_layout = GridLayout(cols=2)
+
+            days_sales_layout = GridLayout(cols=4)
+
+            cursor_kamaleao.execute(
+                "SELECT nome_mp, sales_rate FROM relatorio_saida_materia_prima ORDER BY nome_mp ASC")
+
+            metricas_sales_rate = cursor_kamaleao.fetchall()
+            for i in metricas_sales_rate:
+                print(i)
+                sales_rate_layout.add_widget(Label(text=str(i)))
+
+            metricas_layout.add_widget(sales_rate_layout)
+
+            cursor_kamaleao.execute("SELECT nome, estoque_atual FROM materia_prima ORDER BY nome ASC ")
+            nome_estoque_atual = cursor_kamaleao.fetchall()
+            for i in range(len(nome_estoque_atual)):
+                days_sales_layout.add_widget(Label(text=str(metricas_sales_rate[i][0])))
+                print(str(metricas_sales_rate[i][0]))
+
+                try:
+                    days_sales_layout.add_widget(
+                        Label(text=str(round(nome_estoque_atual[i][1] / metricas_sales_rate[i][1], 2))))
+                    try:
+                        print(str(nome_estoque_atual[i][1] / metricas_sales_rate[i][1]))
+                    except Exception as e:
+                        print(e)
+                except:
+                    days_sales_layout.add_widget(Label(text="0"))
+
+            metricas_layout.add_widget(days_sales_layout)
+
+            menu.add_widget(relatorios_menu_layout)
+            menu.add_widget(metricas_layout)
 
         def settings_view(instance):
             menu.clear_widgets()
