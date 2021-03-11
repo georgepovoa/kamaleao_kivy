@@ -23,6 +23,9 @@ from kivy.uix.popup import Popup
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.uix.togglebutton import ToggleButton
+from kivy.animation import Animation
+
+
 
 # COLORS #
 
@@ -145,33 +148,38 @@ class KamaleãoApp(App):
                     # verificação de input vazio e enviar 0 quando vazio #
 
                     # lógica de do db estoque_atual#
-                    cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", tabela)
-                    estoque_antigo = cursor_kamaleao.fetchone()[0]
+                    cursor_kamaleao.execute('''SELECT * from materia_prima WHERE nome= ? ''',tabela)
+                    result = cursor_kamaleao.fetchall()[0]
+                    estoque_antigo = result[5]
                     estoque_novo = estoque_antigo + float(quantidade_adicionar.text)
                     tabela_db = [estoque_novo, nome_do_produto]
-                    conn_kamaleao.execute("UPDATE materia_prima set estoque_atual = ? WHERE nome = ?", tabela_db)
-                    # lógica de do db estoque_atual#
+                    if estoque_novo <= result[1]:
+                        conn_kamaleao.execute("UPDATE materia_prima set estoque_atual = ? WHERE nome = ?", tabela_db)
+                        # lógica de do db estoque_atual#
 
-                    # lógica db porcento #
-                    cursor_kamaleao.execute("SELECT estoque_atual, estoque_maximo FROM materia_prima WHERE nome = ?",
-                                            tabela)
-                    result = cursor_kamaleao.fetchone()
-                    maxim = result[1]
-                    atual = result[0]
-                    tabela_update_porcento = [(atual / maxim) * 100, tabela[0]]
-                    conn_kamaleao.execute("UPDATE materia_prima set porcento = ? WHERE nome = ?",
-                                          tabela_update_porcento)
+                        # lógica db porcento #
+                        cursor_kamaleao.execute("SELECT estoque_atual, estoque_maximo FROM materia_prima WHERE nome = ?",
+                                                tabela)
+                        result = cursor_kamaleao.fetchone()
+                        maxim = result[1]
+                        atual = result[0]
+                        tabela_update_porcento = [(atual / maxim) * 100, tabela[0]]
+                        conn_kamaleao.execute("UPDATE materia_prima set porcento = ? WHERE nome = ?",
+                                              tabela_update_porcento)
 
-                    # lógica db porcento #
+                        # lógica db porcento #
 
-                    refresh_tabela_estoque()
+                        refresh_tabela_estoque()
 
-                    # lógica db fluxo_db #
-                    cursor_kamaleao.execute("SELECT datetime('now', 'localtime')")
-                    time_value = cursor_kamaleao.fetchone()[0]
-                    relatorios_tabela = [nome_do_produto, float(quantidade_adicionar.text), time_value]
-                    conn_kamaleao.execute("INSERT INTO relatorios_fluxo(produto,quantidade,dia) VALUES (?,?,?)",
-                                          relatorios_tabela)
+                        # lógica db fluxo_db #
+                        cursor_kamaleao.execute("SELECT datetime('now', 'localtime')")
+                        time_value = cursor_kamaleao.fetchone()[0]
+                        relatorios_tabela = [nome_do_produto, float(quantidade_adicionar.text), time_value]
+                        conn_kamaleao.execute("INSERT INTO relatorios_fluxo(produto,quantidade,dia) VALUES (?,?,?)",
+                                              relatorios_tabela)
+                    else:
+                        popup_maior_que_100 = Popup(title="Excedeu estoque máximo",size_hint=(0.3,0.3))
+                        popup_maior_que_100.open()
 
                     # lógica db fluxo_db #
 
@@ -195,14 +203,16 @@ class KamaleãoApp(App):
 
             # ########## COMEÇO VER TABELA ######### #
 
-            layout_tabela = GridLayout(rows=2)
-            blocks = GridLayout(rows=5, spacing=20)
+            layout_tabela = FloatLayout()
+            blocks = GridLayout(rows=6, spacing=20)
 
             # GERADOR DE BTT DINAMICO##
             cursor_kamaleao.execute('''SELECT * from materia_prima''')
             result = cursor_kamaleao.fetchall()
             for i in result:
                 nome = i[0]
+                estoque_minimo = i[2]
+                estoque_emergencial = i[3]
                 percent = i[6]
                 cor = i[4].replace("[", '')
                 cor = cor.replace(']', '')
@@ -211,10 +221,34 @@ class KamaleãoApp(App):
                     cor[z] = round(float(cor[z]), 2)
                 cor = tuple(cor)
 
-                btn = Button(text="{}\n{}%".format(nome, percent),
-                             font_name="fonts/bariol_bold-webfont", background_color=cor, size_hint=(0.3, 0.3))
+                btn_grid = GridLayout(cols=2 ,spacing=3)
+                btn = Button(text="{}\n{}%".format(nome, round(percent,2)),font_size=18,
+                             font_name="fonts/bariol_bold-webfont", background_color=cor,background_normal="",border=(0,0,0,0))
+
+                btn_lvl = Button(background_color=cor, size_hint=(None,None),size = (30,(btn.size[1]+10)*(percent/100)),background_normal="",border=(0,0,0,0))
+
+
+
+
                 btn.bind(on_release=lambda btn: enviar_db(btn.text))
-                blocks.add_widget(btn)
+                if percent < estoque_emergencial:
+                    anim = Animation(color=(1,0,0,1), t='out_cubic') +Animation(color=(1,1,1,1), t='in_quad')
+                    anim.repeat = True
+                elif percent<estoque_minimo:
+                    anim = Animation(color = (1,1,0,1), t='in_quad')+Animation(color=(1,1,1,1), t='in_quad')
+                    anim.repeat = True
+
+                else:
+                    anim = None
+                btn_grid.add_widget(btn)
+                btn_grid.add_widget(btn_lvl)
+
+                blocks.add_widget(btn_grid)
+
+                try:
+                    anim.start(btn)
+                except:
+                    pass
             layout_tabela.add_widget(blocks)
             # GERADOR DE BTT DINAMICO##
 
@@ -502,6 +536,8 @@ class KamaleãoApp(App):
                                                            esqueda_baixo_area_direita_tabela[z][1], time_value]
                             conn_kamaleao.execute("INSERT INTO relatorios_fluxo(produto,quantidade,dia) VALUES (?,?,?)",
                                                   valores_relatorios_producao)
+
+                            simular_tab_popup.dismiss()
                         ## e aqui relatório sales_rate ##
 
                         try:
@@ -551,6 +587,9 @@ class KamaleãoApp(App):
                                 conn_kamaleao.execute(
                                     "UPDATE relatorio_saida_materia_prima SET sales_rate = ? WHERE nome_mp = ? AND data = ?",
                                     update_sales_rate)
+
+
+
 
 
 
@@ -663,7 +702,7 @@ class KamaleãoApp(App):
             width_calc = (layout.size[0] - 150) / 3.8
             heigt_calc = layout.size[1] / 1.73
 
-            menu_producao_layout = GridLayout(cols=3)
+            menu_producao_layout = GridLayout(cols=3,spacing=75,padding=[30,150,150,150])
 
             menu_estoque_btt = Button(background_normal='img/Botao_estoque.png', color=(0, 0, 0, 0),
                                       pos_hint={"x": 1, "y": 1}, size_hint=(None, None), width=width_calc,
@@ -977,7 +1016,7 @@ class KamaleãoApp(App):
             # COMEÇO DA TELA DE ESTOQUE #
 
             menu.clear_widgets()
-            estoque_menu_layout = GridLayout(cols=2)
+            estoque_menu_layout = GridLayout(cols=2,spacing=50,padding=[150,150,150,150])
             gerenciar_materiaPrima_btt = Button(text="Gerenciar matéra prima",
                                                 size_hint=(None, None), width=300, height=410,
                                                 )
@@ -987,7 +1026,7 @@ class KamaleãoApp(App):
                                               size_hint=(None, None), width=300, height=410,
                                               )
 
-            adicionar_ao_estoque_btt.bind(on_press=adicionar_ao_estoque_func)
+            adicionar_ao_estoque_btt.bind(on_press=ver_tabela)
 
             estoque_menu_layout.add_widget(gerenciar_materiaPrima_btt)
             estoque_menu_layout.add_widget(adicionar_ao_estoque_btt)
@@ -1146,7 +1185,10 @@ class KamaleãoApp(App):
 
             # ############ GRÁFICO 2 ############### #
 
-            metricas_layout = GridLayout(cols=3)
+            metricas_layout = GridLayout(cols=3,spacing=75)
+            metricas_layout.add_widget(Label(text="Sales_rate"))
+            metricas_layout.add_widget(Label(text="days sales"))
+            metricas_layout.add_widget(Label(text="Saídas de hoje"))
 
             sales_rate_layout = GridLayout(cols=1, spacing=15, size_hint_y=None,size=(1000,1000))
             sales_rate_layout.bind(height=layout.setter('height'))
