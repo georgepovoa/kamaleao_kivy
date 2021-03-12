@@ -7,6 +7,7 @@ from subprocess import PIPE, Popen
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 import pandas as pd
 from kivy.app import App
@@ -85,12 +86,6 @@ data TEXT NOT NULL
 
 conn_kamaleao = sqlite3.connect('kamaleao.db')
 cursor_kamaleao = conn_kamaleao.cursor()
-
-conn = sqlite3.connect('pigmentos.db')
-cursor = conn.cursor()
-
-conn_forms = sqlite3.connect('forms.db')
-cursor_forms = conn_forms.cursor()
 
 
 # tempo em sqlite
@@ -273,7 +268,8 @@ class KamaleãoApp(App):
                     # validação de input #
 
                     for i in range(len(nome_das_materias_primas_iterate)):
-                        if nome_das_materias_primas_iterate[i].text == "" or nome_das_materias_primas_iterate[i].text == '.':
+                        if nome_das_materias_primas_iterate[i].text == "" or nome_das_materias_primas_iterate[
+                            i].text == '.':
                             nome_das_materias_primas_iterate[i].text = '0'
 
                         # validação de input #
@@ -410,11 +406,38 @@ class KamaleãoApp(App):
 
                         cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
                         valor_antigo = cursor_kamaleao.fetchone()[0]
+                        cursor_kamaleao.execute(
+                            "SELECT estoque_maximo,estoque_minimo,estoque_emergencial FROM materia_prima WHERE nome = ?",
+                            nome)
+                        result = cursor_kamaleao.fetchone()
+                        print(result)
+                        estoque_maximo = result[0]
+                        estoque_minimo = result[1]
+                        estoque_emergencial = result[2]
+                        print(result)
+
                         novo_valor = valor_antigo - formula_formatada.get(i)
 
                         if valor_antigo != novo_valor:
-                            direita_tab_content.add_widget(Label(text=str(i)))
-                            direita_tab_content.add_widget(Label(text=str(novo_valor)))
+                            try:
+                                if novo_valor < 0:
+                                    direita_tab_content.add_widget(Label(text=str(i), color=(.5, 0, 0, 1)))
+                                    direita_tab_content.add_widget(Label(text=str(novo_valor), color=(.5, 0, 0, 1)))
+                                elif (novo_valor / estoque_maximo) * 100 < estoque_emergencial:
+                                    direita_tab_content.add_widget(Label(text=str(i), color=(1, 0, 0, 1)))
+                                    direita_tab_content.add_widget(Label(text=str(novo_valor), color=(1, 0, 0, 1)))
+                                elif (novo_valor / estoque_maximo) * 100 < estoque_minimo:
+                                    direita_tab_content.add_widget(Label(text=str(i), color=(1, 1, 0, 1)))
+                                    direita_tab_content.add_widget(Label(text=str(novo_valor), color=(1, 1, 0, 1)))
+                                else:
+                                    direita_tab_content.add_widget(Label(text=str(i), color=(1, 1, 1, 1)))
+                                    direita_tab_content.add_widget(Label(text=str(novo_valor), color=(1, 1, 1, 1)))
+                            except Exception as e:
+                                print(e)
+
+
+
+
                         else:
                             pass
                     # aqui adiciona na tela o nome da fórmula e a quantidade de vezes que ela foi adicionada #
@@ -428,6 +451,11 @@ class KamaleãoApp(App):
                     produto_nao_existe.open()
 
             def ver_limite_func(instance):
+                limite_layout = GridLayout(cols=2)
+
+                def limite_dismiss(instance):
+                    simular_tab_popup.dismiss()
+                    simular_tab(instance)
 
                 nome = [nome_da_formula.text]
                 cursor_kamaleao.execute("SELECT * FROM formulas WHERE nome = ?", nome)
@@ -445,7 +473,7 @@ class KamaleãoApp(App):
                     for s in formula_completa:
                         s = s.strip()
                         s = s.split(":")
-
+                        nome = [s[0]]
                         ## aqui, soma no dict um valor se a matéria prima já estiver dentro do dict ##
                         ## ou adiciona no dict uma nova matéria prima com seu valor a ser descontado  ##
 
@@ -453,30 +481,43 @@ class KamaleãoApp(App):
                             nome = [s[0]]
                             cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome =?", nome)
                             estoque_atual = cursor_kamaleao.fetchone()[0]
-
-                            if s[0] in formula_formatada:
-
-                                formula_formatada[s[0]] = float(s[1]) * limite
-                                if formula_formatada[s[0]] > estoque_atual:
-                                    limite_formula.append(limite - 1)
-
-                                    break
+                            if estoque_atual <= 0:
+                                limite_layout.add_widget(Label(text=str(nome)))
+                                limite_layout.add_widget(Label(text=str(0)))
+                                retornar_0=0
+                                break
                             else:
-                                formula_formatada[s[0]] = float(s[1]) * limite
-                                if formula_formatada[s[0]] > estoque_atual:
-                                    break
-                    print("f", nome_da_formula.text)
-                    print("x", min(limite_formula))
-                    limite_layout = GridLayout(cols=2)
+
+                                if s[0] in formula_formatada:
+
+                                    formula_formatada[s[0]] = float(s[1]) * limite
+                                    if formula_formatada[s[0]] > estoque_atual:
+                                        print(limite)
+                                        limite_formula.append(limite - 1)
+                                        print(limite_formula)
+
+                                        break
+                                else:
+                                    formula_formatada[s[0]] = float(s[1]) * limite
+                                    if formula_formatada[s[0]] > estoque_atual:
+                                        break
+
                     limite_layout.add_widget(Label(text="Fórmula"))
 
                     limite_layout.add_widget(Label(text="Possível fazer com estoque atual"))
 
                     limite_layout.add_widget(Label(text=str(nome_da_formula.text)))
-                    limite_layout.add_widget(Label(text=str(min(limite_formula))))
+                    print(limite_formula)
 
-                    limite_popup = Popup(title="Limite", content=limite_layout, size_hint=(0.4, 0.3),
+                    try:
+                        limite_layout.add_widget(Label(text=str(retornar_0)))
+
+
+                    except Exception as e:
+                        limite_layout.add_widget(Label(text=str(min(limite_formula))))
+                    limite_popup = Popup(title="Limite", content=limite_layout, size_hint=(0.8, 0.8),
                                          background_color=(200 / 255, 210 / 255, 197 / 255, 1), )
+                    limite_popup.bind(on_dismiss=limite_dismiss)
                     limite_popup.open()
 
                     formula_formatada.clear()
@@ -499,12 +540,15 @@ class KamaleãoApp(App):
                 # Verifica se algum valor é menor que 0
 
                 for i in formula_formatada:
-                    nome = [i]
-                    cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
-                    novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
-                    if novo_valor < 0:
-                        # se existir, o valido fica falso e não permite a produção #
-                        valido = False
+                    try:
+                        nome = [i]
+                        cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
+                        novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
+                        if novo_valor < 0:
+                            # se existir, o valido fica falso e não permite a produção #
+                            valido = False
+                    except:
+                        print("provavel que nao exista alguma matéria prima")
 
                 if valido:
                     if nome_da_formula.text == '' or nome_da_formula.text == ' ' or nome_da_formula.text == '.':
@@ -513,126 +557,147 @@ class KamaleãoApp(App):
                     else:
 
                         # Se válido, update o estoque atual de matéria prima #
-                        for i in formula_formatada:
-                            nome = [i]
-                            cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
-                            novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
-                            atualizar_tabela = [novo_valor, i]
-                            conn_kamaleao.execute("UPDATE materia_prima SET estoque_atual = ? WHERE nome = ?",
-                                                  atualizar_tabela)
+                        try:
+                            for i in formula_formatada:
 
-                            # e atualiza a porcentagem #
+                                nome = [i]
+                                cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
+                                novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
+                                atualizar_tabela = [novo_valor, i]
+                                conn_kamaleao.execute("UPDATE materia_prima SET estoque_atual = ? WHERE nome = ?",
+                                                      atualizar_tabela)
 
-                            cursor_kamaleao.execute(
-                                "SELECT estoque_atual,estoque_maximo FROM materia_prima where nome = ?",
-                                nome)
-                            result = cursor_kamaleao.fetchone()
-                            maxim = result[1]
-                            atual = result[0]
-                            tabela_update_porcento = [(atual / maxim) * 100, nome[0]]
-                            conn_kamaleao.execute("UPDATE materia_prima set porcento = ? WHERE nome = ?",
-                                                  tabela_update_porcento)
+                                # e atualiza a porcentagem #
 
-                            # e aqui atualiza o relatório #
-
-                            ####### RELATORIO_fluxo ########
-                            cursor_kamaleao.execute("SELECT datetime('now', 'localtime')")
-                            time_value = cursor_kamaleao.fetchone()[0]
-                            for z in range(len(esqueda_baixo_area_direita_tabela)):
-                                valores_relatorios_producao = [esqueda_baixo_area_direita_tabela[z][0],
-                                                               esqueda_baixo_area_direita_tabela[z][1], time_value]
-                                conn_kamaleao.execute(
-                                    "INSERT INTO relatorios_fluxo(produto,quantidade,dia) VALUES (?,?,?)",
-                                    valores_relatorios_producao)
-
-                                simular_tab_popup.dismiss()
-                            ## e aqui relatório sales_rate ##
-
-                            try:
-                                cursor_kamaleao.execute("SELECT date('now', 'localtime')")
-
-                                date = cursor_kamaleao.fetchone()[0]
-                                verificar_se_ja_existe = [i, date]
                                 cursor_kamaleao.execute(
-                                    "SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",
-                                    verificar_se_ja_existe)
-                                achou = cursor_kamaleao.fetchone()[0]
-                                cursor_kamaleao.execute(
-                                    "SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",
-                                    verificar_se_ja_existe)
-                                todas_infos = cursor_kamaleao.fetchall()
-                                nome_mp = todas_infos[0][1]
-                                quantidade = todas_infos[0][2]
-                                quantidade = todas_infos[0][2] + formula_formatada.get(i)
-                                sales_rate = todas_infos[0][3]
+                                    "SELECT estoque_atual,estoque_maximo FROM materia_prima where nome = ?",
+                                    nome)
+                                result = cursor_kamaleao.fetchone()
+                                maxim = result[1]
+                                atual = result[0]
+                                tabela_update_porcento = [(atual / maxim) * 100, nome[0]]
+                                conn_kamaleao.execute("UPDATE materia_prima set porcento = ? WHERE nome = ?",
+                                                      tabela_update_porcento)
 
-                                # ta dando erroa qui
-                                conn_kamaleao.execute("""
-                                UPDATE relatorio_saida_materia_prima SET quantidade_saida = {}  WHERE nome_mp = ? AND data = ?
-                                """.format(quantidade, achou), verificar_se_ja_existe)
+                                # e aqui atualiza o relatório #
+
+                                ####### RELATORIO_fluxo ########
+                                cursor_kamaleao.execute("SELECT datetime('now', 'localtime')")
+                                time_value = cursor_kamaleao.fetchone()[0]
+                                for z in range(len(esqueda_baixo_area_direita_tabela)):
+                                    valores_relatorios_producao = [esqueda_baixo_area_direita_tabela[z][0],
+                                                                   esqueda_baixo_area_direita_tabela[z][1], time_value]
+                                    conn_kamaleao.execute(
+                                        "INSERT INTO relatorios_fluxo(produto,quantidade,dia) VALUES (?,?,?)",
+                                        valores_relatorios_producao)
+
+                                    simular_tab_popup.dismiss()
+                                ## e aqui relatório sales_rate ##
 
                                 try:
-                                    cursor_kamaleao.execute(""" SELECT data,nome_mp FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?
-                                    ORDER BY data ASC """, verificar_se_ja_existe)
+                                    cursor_kamaleao.execute("SELECT date('now', 'localtime')")
 
-                                    primeira_data = [cursor_kamaleao.fetchone()[0]]
-
-                                    cursor_kamaleao.execute("SELECT julianday('now') - julianday(?)", primeira_data)
-                                    delta = round(cursor_kamaleao.fetchone()[0], 4) - 0.72
-                                    nome_pra_sales_rate = [i]
+                                    date = cursor_kamaleao.fetchone()[0]
+                                    verificar_se_ja_existe = [i, date]
                                     cursor_kamaleao.execute(
-                                        "SELECT SUM(quantidade_saida) FROM relatorio_saida_materia_prima WHERE nome_mp = ?",
-                                        nome_pra_sales_rate)
-                                    soma = cursor_kamaleao.fetchone()[0]
-                                    if delta < 1 and delta < 2:
-                                        delta = 1
+                                        "SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",
+                                        verificar_se_ja_existe)
+                                    achou = cursor_kamaleao.fetchone()[0]
+                                    cursor_kamaleao.execute(
+                                        "SELECT * FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?",
+                                        verificar_se_ja_existe)
+                                    todas_infos = cursor_kamaleao.fetchall()
+                                    nome_mp = todas_infos[0][1]
+                                    quantidade = todas_infos[0][2]
+                                    quantidade = todas_infos[0][2] + formula_formatada.get(i)
+                                    sales_rate = todas_infos[0][3]
 
-                                    sales_rate = soma / delta
+                                    # ta dando erroa qui
+                                    conn_kamaleao.execute("""
+                                    UPDATE relatorio_saida_materia_prima SET quantidade_saida = {}  WHERE nome_mp = ? AND data = ?
+                                    """.format(quantidade, achou), verificar_se_ja_existe)
 
-                                    update_sales_rate = [round(sales_rate, 2), i, date]
+                                    try:
+                                        cursor_kamaleao.execute(""" SELECT data,nome_mp FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?
+                                        ORDER BY data ASC """, verificar_se_ja_existe)
 
-                                    conn_kamaleao.execute(
-                                        "UPDATE relatorio_saida_materia_prima SET sales_rate = ? WHERE nome_mp = ? AND data = ?",
-                                        update_sales_rate)
+                                        primeira_data = [cursor_kamaleao.fetchone()[0]]
+
+                                        cursor_kamaleao.execute("SELECT julianday('now') - julianday(?)", primeira_data)
+                                        delta = round(cursor_kamaleao.fetchone()[0], 4) - 0.72
+                                        nome_pra_sales_rate = [i]
+                                        cursor_kamaleao.execute(
+                                            "SELECT SUM(quantidade_saida) FROM relatorio_saida_materia_prima WHERE nome_mp = ?",
+                                            nome_pra_sales_rate)
+                                        soma = cursor_kamaleao.fetchone()[0]
+                                        if delta < 1 and delta < 2:
+                                            delta = 1
+
+                                        sales_rate = soma / delta
+
+                                        update_sales_rate = [round(sales_rate, 2), i, date]
+
+                                        conn_kamaleao.execute(
+                                            "UPDATE relatorio_saida_materia_prima SET sales_rate = ? WHERE nome_mp = ? AND data = ?",
+                                            update_sales_rate)
 
 
 
 
 
 
-                                except Exception as e:
-                                    ocorreu_um_erro = Popup(title="Ocorreu um erro.", size_hint=(0.2, 0.2),
-                                                            background_color=(200 / 255, 210 / 255, 197 / 255, 1), )
-                                    ocorreu_um_erro.open()
+                                    except Exception as e:
+                                        ocorreu_um_erro = Popup(title="Ocorreu um erro.", size_hint=(0.2, 0.2),
+                                                                background_color=(200 / 255, 210 / 255, 197 / 255, 1), )
+                                        ocorreu_um_erro.open()
 
-                                # print(primeira_data)
-
-
+                                    # print(primeira_data)
 
 
-                            except:
 
-                                tabela_pra_saleRate = [i, formula_formatada.get(i), date]
-                                conn_kamaleao.execute("""
-                                INSERT INTO relatorio_saida_materia_prima(
-                                nome_mp,quantidade_saida,sales_rate,data)
-                                VALUES(?,?,0,?)
-                                """, tabela_pra_saleRate)
-                                cursor_kamaleao.execute("SELECT * FROM relatorio_saida_materia_prima")
 
-                            esqueda_baixo_area_direita_tabela.clear()
+                                except:
+
+                                    tabela_pra_saleRate = [i, formula_formatada.get(i), date]
+                                    conn_kamaleao.execute("""
+                                    INSERT INTO relatorio_saida_materia_prima(
+                                    nome_mp,quantidade_saida,sales_rate,data)
+                                    VALUES(?,?,0,?)
+                                    """, tabela_pra_saleRate)
+                                    cursor_kamaleao.execute("SELECT * FROM relatorio_saida_materia_prima")
+
+                                esqueda_baixo_area_direita_tabela.clear()
+                        except Exception as e:
+                            print(e)
+
                 else:
+                    negativos = GridLayout(rows=2)
+                    negativos_header = GridLayout(cols=4, row_force_default=True, row_default_height=40)
+                    negativos_header.add_widget(Label(text="Matéria Prima"))
+                    negativos_header.add_widget(Label(text="Faltante"))
+
+                    negativos_content = GridLayout(cols=4, size_hint_y=None, size=(100, 450))
                     # aqui se o válido for falso, a gente pega os valores falsos e transforma#
                     #  ou tenta trasnformar em um Pedido de compra #
                     valores_negativos = []
 
                     for i in formula_formatada:
-                        nome = [i]
-                        cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
-                        novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
-                        if novo_valor < 0:
-                            valores_negativos.append("{} : {}".format(i, novo_valor))
-                    print(valores_negativos)
+                        try:
+                            nome = [i]
+                            cursor_kamaleao.execute("SELECT estoque_atual FROM materia_prima WHERE nome = ?", nome)
+                            novo_valor = cursor_kamaleao.fetchone()[0] - formula_formatada.get(i)
+                            if novo_valor < 0:
+                                valores_negativos.append("{} : {}".format(i, novo_valor))
+                                negativos_content.add_widget(Label(text=str(i)))
+                                negativos_content.add_widget(Label(text=str(novo_valor)))
+                        except:
+                            print("provavelmente existe uma cor nessa formula que nao existe mais")
+
+                    negativos.add_widget(negativos_header)
+                    negativos.add_widget(negativos_content)
+
+                    valores_negativos_popup = Popup(title="Produzir negativo", content=negativos, size_hint=(.8, .8))
+                    valores_negativos_popup.open()
 
             def limpar_func(instance):
                 simular_tab_popup.dismiss()
@@ -775,7 +840,8 @@ class KamaleãoApp(App):
                             # validador de input #
 
                             for i in range(len(lista_adicionar_materiaPrima_btt)):
-                                if lista_adicionar_materiaPrima_btt[i] == "" or lista_adicionar_materiaPrima_btt[i] == ".":
+                                if lista_adicionar_materiaPrima_btt[i] == "" or lista_adicionar_materiaPrima_btt[
+                                    i] == ".":
                                     lista_adicionar_materiaPrima_btt[i] = "1"
                             try:
                                 # adicionar no materias primas db#
@@ -1057,7 +1123,7 @@ class KamaleãoApp(App):
             # days_sales_inventory
 
             menu.clear_widgets()
-            menu_graficos = GridLayout(rows=2, spacing=0, padding=1, row_force_default=True, row_default_height=150)
+            menu_graficos = GridLayout(rows=2, padding=2)
             df = pd.read_sql_query("SELECT * from relatorios_fluxo", conn_kamaleao)
 
             df.to_excel(r'teste_relatorios_fluxo.xlsx', index=False)
@@ -1067,9 +1133,6 @@ class KamaleãoApp(App):
             #    opener = "open" if sys.platform == "darwin" else "xdg-open"
             #    subprocess.call([opener, 'teste_relatorios_fluxo.xlsx'])
 
-            cursor_kamaleao.execute("SELECT * FROM materia_prima")
-            cores = cursor_kamaleao.fetchall()
-
             # ############ GRÁFICO 1 ############### #
 
             cursor_kamaleao.execute("SELECT * FROM materia_prima")
@@ -1078,12 +1141,9 @@ class KamaleãoApp(App):
             df = pd.read_sql_query("SELECT nome,porcento,rgb from materia_prima LIMIT {}".format(tamanho),
                                    conn_kamaleao)
             df.reset_index(drop=True, inplace=True)
-            nomes = df["nome"]
             porcento = df["porcento"]
-            cursor_kamaleao.execute('''SELECT rgb from materia_prima''')
-            result = cursor_kamaleao.fetchall()
 
-            ax = df.plot.bar(x='nome', y='porcento', rot=0, figsize=(13, 0.8))
+            ax = df.plot.bar(x='nome', y='porcento', rot=0, figsize=(26, 3.2))
 
             childrenLS = ax.get_children()
             barlist = filter(lambda x: isinstance(x, matplotlib.patches.Rectangle), childrenLS)
@@ -1130,7 +1190,7 @@ class KamaleãoApp(App):
             plt.savefig("testando_plot.png", bbox_inches='tight', dpi=80)
 
             plt.close()
-            plt_1 = Image(source="testando_plot.png", size_hint=(None, None), size=(Window.size[0] - 475, 160))
+            plt_1 = Image(source="testando_plot.png", allow_stretch=True, keep_ratio=False)
             plt_1.reload()
             menu_graficos.add_widget(plt_1)
             # ############ GRÁFICO 1 ############### #
@@ -1144,7 +1204,7 @@ class KamaleãoApp(App):
             cursor_kamaleao.execute('''SELECT rgb from materia_prima''')
             result = cursor_kamaleao.fetchall()
 
-            ax = df_2.plot.bar(x='nome', y='porcento', rot=0, figsize=(13, 0.8))
+            ax = df_2.plot.bar(x='nome', y='porcento', rot=0, figsize=(26, 3.2))
             porcento_2 = df_2["porcento"]
 
             childrenLS = ax.get_children()
@@ -1197,8 +1257,9 @@ class KamaleãoApp(App):
             plt.savefig("testando_plot_2.png", bbox_inches='tight', dpi=80)
 
             plt.close()
-            img_2 = Image(source="testando_plot_2.png", size_hint=(None, None), size=(Window.size[0] - 475, 155))
+            img_2 = Image(source="testando_plot_2.png", allow_stretch=True, keep_ratio=False)
             img_2.reload()
+
             menu_graficos.add_widget(img_2)
             menu.add_widget(menu_graficos)
 
@@ -1249,7 +1310,7 @@ class KamaleãoApp(App):
             days_sales_scroll.add_widget(days_sales_layout)
             metricas_layout.add_widget(days_sales_scroll)
 
-            saidas_de_hoje = GridLayout(cols=1, spacing=15, size_hint_y=None, size=(1000, 1000))
+            saidas_de_hoje = GridLayout(cols=1, spacing=15, size_hint_y=None, size=(1000, 500))
 
             saidas_de_hoje_scroll = ScrollView(size_hint=(1, None), size=(200, 200))
             cursor_kamaleao.execute("SELECT date('now', 'localtime')")
@@ -1269,11 +1330,168 @@ class KamaleãoApp(App):
             menu.add_widget(metricas_layout)
 
         def settings_view(instance):
+            def forms_excel(instance):
+                df = pd.read_sql_query("SELECT * from formulas", conn_kamaleao)
+                s = df['formula'].str.split(',').apply(pd.Series, 1).stack()
+                s.index = s.index.droplevel(-1)
+                s.name = 'formula'
+
+                del df['formula']
+
+                df = df.join(s.apply(lambda x: pd.Series(x.split(':'))))
+                df.to_excel(r'formulas.xlsx', index=False)
+
+                if sys.platform == "win32":
+                    os.startfile('formulas.xlsx')
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.call([opener, 'formulas.xlsx'])
+
+            def forms_pdf(instance):
+                df = pd.read_sql_query("SELECT * from formulas", conn_kamaleao)
+                s = df['formula'].str.split(',').apply(pd.Series, 1).stack()
+                s.index = s.index.droplevel(-1)
+                s.name = 'formula'
+
+                del df['formula']
+
+                df = df.join(s.apply(lambda x: pd.Series(x.split(':'))))
+
+                fig, ax = plt.subplots(figsize=(12, 4))
+                ax.axis('tight')
+                ax.axis('off')
+                the_table = ax.table(cellText=df.values, colLabels=df.columns, loc='center')
+                pp = PdfPages("foo.pdf")
+                pp.savefig(fig, bbox_inches='tight')
+                pp.close()
+                if sys.platform == "win32":
+                    os.startfile('foo.pdf')
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.call([opener, "foo.pdf"])
+
+            def mp_excel(instance):
+                df = pd.read_sql_query("SELECT * from materia_prima", conn_kamaleao)
+                
+                df.to_excel(r'materia_prima.xlsx', index=False)
+
+                if sys.platform == "win32":
+                    os.startfile('materia_prima.xlsx')
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.call([opener, 'materia_prima.xlsx'])
+
+            def mp_pdf(instance):
+                df = pd.read_sql_query("SELECT * from materia_prima", conn_kamaleao)
+
+                fig, ax = plt.subplots(figsize=(12, 4))
+                ax.axis('tight')
+                ax.axis('off')
+                the_table = ax.table(cellText=df.values, colLabels=df.columns, loc='center')
+                pp = PdfPages("mp_pdf.pdf")
+                pp.savefig(fig, bbox_inches='tight')
+                pp.close()
+                if sys.platform == "win32":
+                    os.startfile('mp_pdf.pdf')
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.call([opener, "mp_pdf.pdf"])
+
+            def fluxo_excel(instance):
+                df = pd.read_sql_query("SELECT * from relatorios_fluxo", conn_kamaleao)
+                
+                df.to_excel(r'fluxo.xlsx', index=False)
+
+                if sys.platform == "win32":
+                    os.startfile('fluxo.xlsx')
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.call([opener, 'fluxo.xlsx'])
+
+
+            def fluxo_pdf(instance):
+                df = pd.read_sql_query("SELECT * from relatorios_fluxo", conn_kamaleao)
+
+                fig, ax = plt.subplots(figsize=(12, 4))
+                ax.axis('tight')
+                ax.axis('off')
+                the_table = ax.table(cellText=df.values, colLabels=df.columns, loc='center')
+                pp = PdfPages("fluxo.pdf")
+                pp.savefig(fig, bbox_inches='tight')
+                pp.close()
+                if sys.platform == "win32":
+                    os.startfile('fluxo.pdf')
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.call([opener, "fluxo.pdf"])
+
+            def sales_rate_excel(instance):
+                df = pd.read_sql_query("SELECT * from relatorio_saida_materia_prima", conn_kamaleao)
+                
+                df.to_excel(r'sales_rate.xlsx', index=False)
+
+                if sys.platform == "win32":
+                    os.startfile('sales_rate.xlsx')
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.call([opener, 'sales_rate.xlsx'])
+
+            def sales_rate_pdf(instance):
+                df = pd.read_sql_query("SELECT * from relatorio_saida_materia_prima", conn_kamaleao)
+
+                fig, ax = plt.subplots(figsize=(12, 4))
+                ax.axis('tight')
+                ax.axis('off')
+                the_table = ax.table(cellText=df.values, colLabels=df.columns, loc='center')
+                pp = PdfPages("sales_rate.pdf")
+                pp.savefig(fig, bbox_inches='tight')
+                pp.close()
+                if sys.platform == "win32":
+                    os.startfile('sales_rate.pdf')
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.call([opener, "sales_rate.pdf"])
+
+
+
 
             menu.clear_widgets()
 
             settings_menu_layout = GridLayout(cols=2)
-            settings_menu_layout.add_widget(Label(text="Settings View"))
+
+            settings_menu_layout_btt_formulas = Button(text="excel fórmulas")
+            settings_menu_layout_btt_formulas.bind(on_press=forms_excel)
+
+            settings_menu_layout_btt_formulas_pdf = Button(text="pdf fórmulas")
+            settings_menu_layout_btt_formulas_pdf.bind(on_press=forms_pdf)
+            settings_menu_layout.add_widget(settings_menu_layout_btt_formulas_pdf)
+
+            settings_menu_layout.add_widget(settings_menu_layout_btt_formulas)
+
+
+            settings_menu_layout_btt_materia_prima = Button(text="excel materia prima")
+            settings_menu_layout_btt_materia_prima.bind(on_press=mp_excel)
+            settings_menu_layout_btt_materia_prima_pdf = Button(text="pdf materia prima")
+            settings_menu_layout_btt_materia_prima_pdf.bind(on_press=mp_pdf)
+            settings_menu_layout.add_widget(settings_menu_layout_btt_materia_prima_pdf)
+            settings_menu_layout.add_widget(settings_menu_layout_btt_materia_prima)
+
+            settings_menu_layout_btt_fluxo = Button(text="excel fluxo")
+            settings_menu_layout_btt_fluxo.bind(on_press=fluxo_excel)
+            settings_menu_layout_btt_fluxo_pdf = Button(text="pdf fluxo")
+            settings_menu_layout_btt_fluxo_pdf.bind(on_press=fluxo_pdf)
+            settings_menu_layout.add_widget(settings_menu_layout_btt_fluxo_pdf)
+            settings_menu_layout.add_widget(settings_menu_layout_btt_fluxo)
+
+            settings_menu_layout_btt_sales_rate = Button(text="excel sales_rate")
+            settings_menu_layout_btt_sales_rate.bind(on_press=sales_rate_excel)
+            settings_menu_layout_btt_sales_rate_pdf = Button(text="pdf sales_rate")
+            settings_menu_layout_btt_sales_rate_pdf.bind(on_press=sales_rate_pdf)
+            settings_menu_layout.add_widget(settings_menu_layout_btt_sales_rate_pdf)
+            settings_menu_layout.add_widget(settings_menu_layout_btt_sales_rate)
+
+
+
             menu.add_widget(settings_menu_layout)
 
         side_bar = GridLayout(cols=1, size_hint_x=None, width=150)
@@ -1310,7 +1528,7 @@ class KamaleãoApp(App):
         ##############side bar #####################
 
         ###### menu #######
-        menu = GridLayout(cols=1, size_hint_x=None, width=Window.size[0] - 150, spacing=0)
+        menu = GridLayout(cols=1)
 
         layout.add_widget(menu)
 
@@ -1327,6 +1545,5 @@ class KamaleãoApp(App):
 if __name__ == '__main__':
     Window.maximize()
     KamaleãoApp().run()
-conn.close()
-conn_forms.close()
+conn_kamaleao.commit()
 conn_kamaleao.close()
