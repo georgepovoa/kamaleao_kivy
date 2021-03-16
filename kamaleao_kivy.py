@@ -26,6 +26,8 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.togglebutton import ToggleButton
 from kivy.animation import Animation
 
+from kivy.uix.widget import Widget
+
 # COLORS #
 
 # rgba(42,62,70,1) VERDE ESCURO
@@ -94,7 +96,7 @@ cursor_kamaleao = conn_kamaleao.cursor()
 # print(time_value)
 
 
-class KamaleãoApp(App):
+class KamaleãoApp(App, Widget):
 
     def build(self):
 
@@ -119,6 +121,7 @@ class KamaleãoApp(App):
             # ########## VER TABELA É O LAYOUT DOS BTTS ######### #
 
             def enviar_db(nome):
+
                 # ########## ENVIAR_DB É O LAYOUT APÓS ABRIR UM BTT ######### #
 
                 def enviar_db_de_vdd(instance):
@@ -180,7 +183,8 @@ class KamaleãoApp(App):
 
                 # ########## COMEÇO ENVIAR_DB ######### #
                 tela_adicionar_estoque = GridLayout(rows=2)
-                quantidade_adicionar = TextInput(multiline=False, input_filter='float')
+                quantidade_adicionar = TextInput(multiline=False, input_filter='float', write_tab=False)
+                quantidade_adicionar.bind(on_text_validate=enviar_db_de_vdd)
                 tela_adicionar_estoque_cima = GridLayout(cols=2)
 
                 tela_adicionar_estoque_cima.add_widget(Label(text="Quantidade à se adicionar ao estoque: "))
@@ -253,6 +257,7 @@ class KamaleãoApp(App):
             aba_estoque_pg.open()
 
         def forms(instance):
+
             # TELA PARA ADICIONAR UMA NOVA FÓRMULA #
 
             def enviar_forms(instance):
@@ -292,7 +297,7 @@ class KamaleãoApp(App):
 
             formulas_layout = GridLayout(cols=2)
             formulas_layout.add_widget(Label(text="Nome"))
-            nome_da_formula = TextInput(multiline=False)
+            nome_da_formula = TextInput(multiline=False, write_tab=False)
             formulas_layout.add_widget(nome_da_formula)
             cursor_kamaleao.execute("SELECT nome FROM materia_prima ORDER BY nome ASC")
             result = cursor_kamaleao.fetchall()
@@ -307,7 +312,7 @@ class KamaleãoApp(App):
                 for z in i:
                     formulas_layout.add_widget(Label(text=str(z)))
                     nomes_mas_materias_primas_string.append(z)
-                    globals()[str(z)] = TextInput(multiline=False, input_filter='float')
+                    globals()[str(z)] = TextInput(multiline=False, input_filter='float', write_tab=False)
                     nome_das_materias_primas_iterate.append(globals()[str(z)])
                     formulas_layout.add_widget(globals()[z])
             #
@@ -317,9 +322,10 @@ class KamaleãoApp(App):
             formulas_layout_btt = Button(text="enviar")
 
             formulas_layout_btt.bind(on_press=enviar_forms)
+
             formulas_layout.add_widget(formulas_layout_btt)
 
-            formulas_popup = Popup(title="forms", content=formulas_layout, size_hint=(1, 1),
+            formulas_popup = Popup(title="forms", content=formulas_layout, size_hint=(0.5, 1),
                                    background_color=(200 / 255, 210 / 255, 197 / 255, 1), )
             formulas_popup.open()
 
@@ -344,7 +350,7 @@ class KamaleãoApp(App):
                 result = cursor_kamaleao.fetchmany(6)
                 for i in result:
                     for f in i:
-                        label = Label(text="[ref={}][color=0000ff]{}[/color][/ref]".format(str(f), str(f)), markup=True)
+                        label = Label(text="[ref={}]{}[/ref]".format(str(f), str(f)), markup=True)
                         label.bind(on_ref_press=print_it)
                         esqueda_baixo_area_esquerda.add_widget(label)
 
@@ -410,11 +416,9 @@ class KamaleãoApp(App):
                             "SELECT estoque_maximo,estoque_minimo,estoque_emergencial FROM materia_prima WHERE nome = ?",
                             nome)
                         result = cursor_kamaleao.fetchone()
-                        print(result)
                         estoque_maximo = result[0]
                         estoque_minimo = result[1]
                         estoque_emergencial = result[2]
-                        print(result)
 
                         novo_valor = valor_antigo - formula_formatada.get(i)
 
@@ -484,7 +488,7 @@ class KamaleãoApp(App):
                             if estoque_atual <= 0:
                                 limite_layout.add_widget(Label(text=str(nome)))
                                 limite_layout.add_widget(Label(text=str(0)))
-                                retornar_0=0
+                                retornar_0 = 0
                                 break
                             else:
 
@@ -492,9 +496,7 @@ class KamaleãoApp(App):
 
                                     formula_formatada[s[0]] = float(s[1]) * limite
                                     if formula_formatada[s[0]] > estoque_atual:
-                                        print(limite)
                                         limite_formula.append(limite - 1)
-                                        print(limite_formula)
 
                                         break
                                 else:
@@ -507,7 +509,6 @@ class KamaleãoApp(App):
                     limite_layout.add_widget(Label(text="Possível fazer com estoque atual"))
 
                     limite_layout.add_widget(Label(text=str(nome_da_formula.text)))
-                    print(limite_formula)
 
                     try:
                         limite_layout.add_widget(Label(text=str(retornar_0)))
@@ -618,13 +619,20 @@ class KamaleãoApp(App):
                                     """.format(quantidade, achou), verificar_se_ja_existe)
 
                                     try:
-                                        cursor_kamaleao.execute(""" SELECT data,nome_mp FROM relatorio_saida_materia_prima WHERE nome_mp = ? AND data = ?
-                                        ORDER BY data ASC """, verificar_se_ja_existe)
+                                        nome = [i]
+                                        print(nome)
+                                        cursor_kamaleao.execute(""" SELECT data,nome_mp FROM relatorio_saida_materia_prima WHERE nome_mp = ?
+                                        ORDER BY data DESC """, nome)
 
-                                        primeira_data = [cursor_kamaleao.fetchone()[0]]
+                                        primeira_data = cursor_kamaleao.fetchall()
+                                        primeira_data = [primeira_data[-1][0]]
+                                        print(primeira_data)
 
                                         cursor_kamaleao.execute("SELECT julianday('now') - julianday(?)", primeira_data)
-                                        delta = round(cursor_kamaleao.fetchone()[0], 4) - 0.72
+
+                                        delta = math.floor(cursor_kamaleao.fetchone()[0])
+
+                                        print(delta)
                                         nome_pra_sales_rate = [i]
                                         cursor_kamaleao.execute(
                                             "SELECT SUM(quantidade_saida) FROM relatorio_saida_materia_prima WHERE nome_mp = ?",
@@ -634,6 +642,8 @@ class KamaleãoApp(App):
                                             delta = 1
 
                                         sales_rate = soma / delta
+                                        print(delta)
+                                        print(sales_rate)
 
                                         update_sales_rate = [round(sales_rate, 2), i, date]
 
@@ -647,7 +657,7 @@ class KamaleãoApp(App):
 
 
                                     except Exception as e:
-                                        ocorreu_um_erro = Popup(title="Ocorreu um erro.", size_hint=(0.2, 0.2),
+                                        ocorreu_um_erro = Popup(title=f"{e}", size_hint=(0.2, 0.2),
                                                                 background_color=(200 / 255, 210 / 255, 197 / 255, 1), )
                                         ocorreu_um_erro.open()
 
@@ -710,12 +720,12 @@ class KamaleãoApp(App):
             esquerda_tab = GridLayout(cols=2)
 
             esquerda_tab.add_widget(Label(text="Nome da fórmula", size_hint=(1, 0.2)))
-            nome_da_formula = TextInput(size_hint=(1, 0.2), multiline=False)
+            nome_da_formula = TextInput(size_hint=(1, 0.2), multiline=False, write_tab=False)
             nome_da_formula.bind(text=on_text)
             esquerda_tab.add_widget(nome_da_formula)
 
             esquerda_tab.add_widget(Label(text="quantidade desejada", size_hint=(1, 0.3)))
-            quantidade = TextInput(size_hint=(1, 0.2), multiline=False, input_filter='float')
+            quantidade = TextInput(size_hint=(1, 0.2), multiline=False, input_filter='float', write_tab=False)
             esquerda_tab.add_widget(quantidade)
 
             produzir_btt = Button(text="produzir", size_hint=(0.3, 0.3))
@@ -769,18 +779,52 @@ class KamaleãoApp(App):
         ##############side bar###############
         def producao_view(instance):
 
+            def excluir_forms(instance):
+                def remover_forms_db(nome_btt):
+                    def refresh_delete_forms_tabela():
+                        aba_remover_formula.dismiss()
+                        excluir_forms(instance)
+
+
+
+
+
+                    tabela_btt = [nome_btt]
+                    conn_kamaleao.execute("DELETE FROM formulas WHERE Nome = ?", tabela_btt)
+                    refresh_delete_forms_tabela()
+
+
+
+
+                layout_remover_forms = GridLayout(cols=4)
+
+                cursor_kamaleao.execute("SELECT nome FROM formulas")
+                todas_formulas = cursor_kamaleao.fetchall()
+
+                for i in todas_formulas:
+                    nome = i[0]
+
+                    btn = Button(text=str(nome),font_name="fonts/bariol_bold-webfont",)
+                    btn.bind(on_release=lambda btn: remover_forms_db(btn.text))
+                    layout_remover_forms.add_widget(btn)
+
+                aba_remover_formula = Popup(title="REMOVER FORMULA",content=layout_remover_forms)
+                aba_remover_formula.open()
+
+
             menu.clear_widgets()
             width_calc = (layout.size[0] - 150) / 3.8
             heigt_calc = layout.size[1] / 1.73
 
             menu_producao_layout = GridLayout(cols=3, spacing=75, padding=[30, 150, 150, 150])
 
-            menu_estoque_btt = Button(background_normal='img/Botao_estoque.png', color=(0, 0, 0, 0),
+            menu_estoque_btt = Button(background_normal='img/Remover Fórmula.png', color=(0, 0, 0, 0),
                                       pos_hint={"x": 1, "y": 1}, size_hint=(None, None), width=width_calc,
                                       height=heigt_calc,
-                                      background_down='img/Botao_estoque.png', border=(0, 0, 0, 0))
-            menu_estoque_btt.bind(on_press=ver_tabela)
+                                      background_down='img/Remover Fórmula.png', border=(0, 0, 0, 0))
+            menu_estoque_btt.bind(on_release=excluir_forms)
             menu_producao_layout.add_widget(menu_estoque_btt)
+            print(menu_estoque_btt.size)
 
             menu_prod_btt = Button(background_normal='img/Simular.png', color=(0, 0, 0, 0), pos_hint={"x": 1, "y": 1},
                                    size_hint=(None, None), width=width_calc, height=heigt_calc,
@@ -858,24 +902,28 @@ class KamaleãoApp(App):
                     # começo do layout para adicionar matérios primas #
                     layout_adicionar_materiaPrima = GridLayout(cols=2)
                     layout_adicionar_materiaPrima.add_widget(Label(text="Nome", size_hint=(1, 0.2)))
-                    nome = TextInput(multiline=False, size_hint=(1, 0.2))
+                    nome = TextInput(multiline=False, size_hint=(1, 0.2), write_tab=False)
                     layout_adicionar_materiaPrima.add_widget(nome)
                     layout_adicionar_materiaPrima.add_widget(
                         Label(text="Estoque máximo\n            (g)", size_hint=(1, 0.3)))
-                    estoque_maximo = TextInput(multiline=False, input_filter='float', size_hint=(1, 0.2))
+                    estoque_maximo = TextInput(multiline=False, input_filter='float', size_hint=(1, 0.2),
+                                               write_tab=False)
                     layout_adicionar_materiaPrima.add_widget(estoque_maximo)
                     layout_adicionar_materiaPrima.add_widget(
                         Label(text="Estoque mínimo\n            (%)", size_hint=(1, 0.2)))
-                    estoque_minimo = TextInput(multiline=False, input_filter='float', size_hint=(1, 0.2))
+                    estoque_minimo = TextInput(multiline=False, input_filter='float', size_hint=(1, 0.2),
+                                               write_tab=False)
                     layout_adicionar_materiaPrima.add_widget(estoque_minimo)
                     layout_adicionar_materiaPrima.add_widget(
                         Label(text="Estoque Emergencial\n                (%)", size_hint=(1, 0.2)))
-                    estoque_emergencial = TextInput(multiline=False, input_filter='float', size_hint=(1, 0.2))
+                    estoque_emergencial = TextInput(multiline=False, input_filter='float', size_hint=(1, 0.2),
+                                                    write_tab=False)
                     layout_adicionar_materiaPrima.add_widget(estoque_emergencial)
 
                     layout_adicionar_materiaPrima.add_widget(
                         (Label(text="Estoque Atual\n          (g)", size_hint=(1, 0.2))))
-                    estoque_atual = TextInput(multiline=False, input_filter='float', size_hint=(1, 0.2))
+                    estoque_atual = TextInput(multiline=False, input_filter='float', size_hint=(1, 0.2),
+                                              write_tab=False)
                     layout_adicionar_materiaPrima.add_widget(estoque_atual)
 
                     layout_adicionar_materiaPrima.add_widget(Label(text="COR"))
@@ -958,36 +1006,37 @@ class KamaleãoApp(App):
                         for z in range(len(cor)):
                             cor[z] = round(float(cor[z]), 2)
                         cor = tuple(cor)
-                        print(cor)
                         clr_picker = ColorPicker(color=cor)
 
                         layout_modificar_valores = GridLayout(cols=2)
                         layout_modificar_valores.add_widget(Label(text="Nome", size_hint=(1, 0.2)))
-                        nome = TextInput(multiline=False, text=str(nome_botao), size_hint=(1, 0.2))
+                        nome = TextInput(multiline=False, text=str(nome_botao), size_hint=(1, 0.2), write_tab=False,
+                                         disabled=True)
 
                         layout_modificar_valores.add_widget(nome)
                         layout_modificar_valores.add_widget(
                             Label(text="Estoque máximo\n            (g)", size_hint=(1, 0.2)))
                         estoque_maximo = TextInput(multiline=False, input_filter='float', text=str(estoque_maximo),
-                                                   size_hint=(1, 0.2))
+                                                   size_hint=(1, 0.2), write_tab=False)
 
                         layout_modificar_valores.add_widget(estoque_maximo)
                         layout_modificar_valores.add_widget(
                             Label(text="Estoque mínimo\n            (%)", size_hint=(1, 0.2)))
                         estoque_minimo = TextInput(multiline=False, input_filter='float', text=str(estoque_minimo),
-                                                   size_hint=(1, 0.2))
+                                                   size_hint=(1, 0.2), write_tab=False)
                         layout_modificar_valores.add_widget(estoque_minimo)
 
                         layout_modificar_valores.add_widget(
                             Label(text="Estoque Emergencial\n               (%)", size_hint=(1, 0.2)))
                         estoque_emergencial = TextInput(multiline=False, input_filter='float',
-                                                        text=str(estoque_emergencial), size_hint=(1, 0.2))
+                                                        text=str(estoque_emergencial), size_hint=(1, 0.2),
+                                                        write_tab=False)
                         layout_modificar_valores.add_widget(estoque_emergencial)
 
                         layout_modificar_valores.add_widget(
                             (Label(text="Estoque Atual\n           (g)", size_hint=(1, 0.2))))
                         estoque_atual = TextInput(multiline=False, input_filter='float', text=str(estoque_atual),
-                                                  size_hint=(1, 0.2))
+                                                  size_hint=(1, 0.2), write_tab=False)
                         layout_modificar_valores.add_widget(estoque_atual)
 
                         layout_modificar_valores.add_widget(Label(text="COR"))
@@ -1103,13 +1152,14 @@ class KamaleãoApp(App):
 
             menu.clear_widgets()
             estoque_menu_layout = GridLayout(cols=2, spacing=50, padding=[150, 150, 150, 150])
-            gerenciar_materiaPrima_btt = Button(text="Gerenciar matéra prima",
-                                                size_hint=(None, None), width=300, height=410,
-                                                )
+            gerenciar_materiaPrima_btt = Button(
+                size_hint=(None, None), width=300, height=410, background_normal="img/Gerenciar_materia_prima.png"
+            )
             gerenciar_materiaPrima_btt.bind(on_press=gerenciar_materiaPrima_func)
+            print(gerenciar_materiaPrima_btt.size)
 
-            adicionar_ao_estoque_btt = Button(text="Adicionar ao estoque",
-                                              size_hint=(None, None), width=300, height=410,
+            adicionar_ao_estoque_btt = Button(
+                                              size_hint=(None, None), width=300, height=410,background_normal="img/Incremetar estoque.png"
                                               )
 
             adicionar_ao_estoque_btt.bind(on_press=ver_tabela)
@@ -1120,259 +1170,271 @@ class KamaleãoApp(App):
 
         def relatorios_view(instance):
 
-            # days_sales_inventory
+            # es_inventory
 
             menu.clear_widgets()
             menu_graficos = GridLayout(rows=2, padding=2)
-            df = pd.read_sql_query("SELECT * from relatorios_fluxo", conn_kamaleao)
-
-            df.to_excel(r'teste_relatorios_fluxo.xlsx', index=False)
-            # if sys.platform == "win32":
-            #    os.startfile('teste_relatorios_fluxo.xlsx')
-            # else:
-            #    opener = "open" if sys.platform == "darwin" else "xdg-open"
-            #    subprocess.call([opener, 'teste_relatorios_fluxo.xlsx'])
 
             # ############ GRÁFICO 1 ############### #
-
-            cursor_kamaleao.execute("SELECT * FROM materia_prima")
-            tamanho = math.ceil(len(cursor_kamaleao.fetchall()) / 2)
-
-            df = pd.read_sql_query("SELECT nome,porcento,rgb from materia_prima LIMIT {}".format(tamanho),
-                                   conn_kamaleao)
-            df.reset_index(drop=True, inplace=True)
-            porcento = df["porcento"]
-
-            ax = df.plot.bar(x='nome', y='porcento', rot=0, figsize=(26, 3.2))
-
-            childrenLS = ax.get_children()
-            barlist = filter(lambda x: isinstance(x, matplotlib.patches.Rectangle), childrenLS)
-            n = 0
-            cursor_kamaleao.execute("SELECT * from materia_prima LIMIT {}".format(tamanho))
-            result = cursor_kamaleao.fetchall()
-            cores_pro_grafico = []
-
-            for i in result:
-                cor = i[4].replace("[", '')
-                cor = cor.replace(']', '')
-                cor = cor.split(",")
-                for z in range(len(cor)):
-                    cor[z] = round(float(cor[z]), 2)
-                cor = tuple(cor)
-                cores_pro_grafico.append(cor)
-
-            n = 0
-            for i in barlist:
-                try:
-                    cor = cores_pro_grafico[n]
-                    i.set_color(cor)
-
-
-
-                except Exception as e:
-                    pass
-                n += 1
-
-            for i, v in enumerate(porcento):
-                ax.text(i - .25,
-                        v / porcento[i] + 50,
-                        round(porcento[i], 1),
-                        fontsize=11,
-                        color="gray",
-                        fontweight='bold'
-                        )
-            ax.get_legend().remove()
-            plt.xticks(rotation=45, ha="right")
-
-            plt.ylim(0, 100)
-            ax.set(xlabel='')
-            ax.plot()
-            plt.savefig("testando_plot.png", bbox_inches='tight', dpi=80)
-
-            plt.close()
-            plt_1 = Image(source="testando_plot.png", allow_stretch=True, keep_ratio=False)
-            plt_1.reload()
-            menu_graficos.add_widget(plt_1)
-            # ############ GRÁFICO 1 ############### #
-
-            # ############ GRÁFICO 2 ############### #
-
-            df_2 = pd.read_sql_query(
-                "SELECT nome,porcento,rgb from materia_prima LIMIT {} OFFSET {}".format(tamanho, tamanho),
-                conn_kamaleao)
-            df_2.reset_index(drop=True, inplace=True)
-            cursor_kamaleao.execute('''SELECT rgb from materia_prima''')
-            result = cursor_kamaleao.fetchall()
-
-            ax = df_2.plot.bar(x='nome', y='porcento', rot=0, figsize=(26, 3.2))
-            porcento_2 = df_2["porcento"]
-
-            childrenLS = ax.get_children()
-            barlist = filter(lambda x: isinstance(x, matplotlib.patches.Rectangle), childrenLS)
-            n = 0
-            cursor_kamaleao.execute("SELECT * from materia_prima LIMIT {} OFFSET {}".format(tamanho, tamanho))
-            result = cursor_kamaleao.fetchall()
-            cores_pro_grafico = []
-
-            for i in result:
-                cor = i[4].replace("[", '')
-                cor = cor.replace(']', '')
-                cor = cor.split(",")
-                for z in range(len(cor)):
-                    cor[z] = round(float(cor[z]), 2)
-                cor = tuple(cor)
-                cores_pro_grafico.append(cor)
-
-            n = 0
-            for i in barlist:
-                try:
-                    cor = cores_pro_grafico[n]
-                    i.set_color(cor)
-
-
-
-                except Exception as e:
-                    pass
-                n += 1
-
-            for i, v in enumerate(porcento_2):
-                ax.text(i - .25,
-                        v / porcento_2[i] + 10,
-                        round(porcento_2[i], 1),
-                        fontsize=11,
-                        color="gray",
-                        fontweight='bold'
-                        )
-            ax.get_legend().remove()
-            plt.xticks(rotation=45, ha="right")
-
-            plt.ylim(0, 100)
-
-            ax.set(xlabel='')
-            # plt.setp(ax1.get_xticklabels(), visible=False)
-            # plt.setp(ax1.get_yticklabels(), visible=False)
-            ax.tick_params(axis='both', which='both', length=0)
-            ax.plot()
-
-            plt.savefig("testando_plot_2.png", bbox_inches='tight', dpi=80)
-
-            plt.close()
-            img_2 = Image(source="testando_plot_2.png", allow_stretch=True, keep_ratio=False)
-            img_2.reload()
-
-            menu_graficos.add_widget(img_2)
-            menu.add_widget(menu_graficos)
-
-            # ############ GRÁFICO 2 ############### #
-
-            metricas_layout = GridLayout(cols=3, spacing=75)
-            metricas_layout.add_widget(Label(text="Sales_rate"))
-            metricas_layout.add_widget(Label(text="days sales"))
-            metricas_layout.add_widget(Label(text="Saídas de hoje"))
-
-            sales_rate_layout = GridLayout(cols=1, spacing=15, size_hint_y=None, size=(1000, 1000))
-            sales_rate_layout.bind(height=layout.setter('height'))
-
-            days_sales_layout = GridLayout(cols=2, spacing=15, size_hint_y=None, size=(1000, 1000))
-            days_sales_layout.bind(height=layout.setter('height'))
-
-            cursor_kamaleao.execute(
-                "SELECT nome_mp, sales_rate FROM relatorio_saida_materia_prima ORDER BY nome_mp ASC")
-
-            metricas_sales_rate = cursor_kamaleao.fetchall()
-            for i in metricas_sales_rate:
-                sales_rate_layout.add_widget(Label(text=str(i)))
-
-            cursor_kamaleao.execute("SELECT nome, estoque_atual FROM materia_prima ORDER BY nome ASC ")
-            nome_estoque_atual = cursor_kamaleao.fetchall()
             try:
-                for i in range(len(nome_estoque_atual)):
-                    days_sales_layout.add_widget(Label(text=str(metricas_sales_rate[i][0])))
 
+                cursor_kamaleao.execute("SELECT * FROM materia_prima")
+                tamanho = math.ceil(len(cursor_kamaleao.fetchall()) / 2)
+
+                df = pd.read_sql_query("SELECT nome,porcento,rgb from materia_prima LIMIT {}".format(tamanho),
+                                       conn_kamaleao)
+                df.reset_index(drop=True, inplace=True)
+                porcento = df["porcento"]
+
+                ax = df.plot.bar(x='nome', y='porcento', rot=0, figsize=(26, 3.2))
+
+                childrenLS = ax.get_children()
+                barlist = filter(lambda x: isinstance(x, matplotlib.patches.Rectangle), childrenLS)
+                n = 0
+                cursor_kamaleao.execute("SELECT * from materia_prima LIMIT {}".format(tamanho))
+                result = cursor_kamaleao.fetchall()
+                cores_pro_grafico = []
+
+                for i in result:
+                    cor = i[4].replace("[", '')
+                    cor = cor.replace(']', '')
+                    cor = cor.split(",")
+                    for z in range(len(cor)):
+                        cor[z] = round(float(cor[z]), 2)
+                    cor = tuple(cor)
+                    cores_pro_grafico.append(cor)
+
+                n = 0
+                for i in barlist:
                     try:
-                        days_sales_layout.add_widget(
-                            Label(text=str(round(nome_estoque_atual[i][1] / metricas_sales_rate[i][1], 2))))
-                    except:
-                        days_sales_layout.add_widget(Label(text="0"))
-            except:
-                metricas_erro = Popup(title="nenhuma métrica foi encontrada", size_hint=(0.1, 0.2),
-                                      background_color=(200 / 255, 210 / 255, 197 / 255, 1), )
-                metricas_erro.open()
+                        cor = cores_pro_grafico[n]
+                        i.set_color(cor)
 
-            sales_rate_scroll = ScrollView(size_hint=(1, None), size=(200, 200))
 
-            sales_rate_scroll.add_widget(sales_rate_layout)
 
-            days_sales_scroll = ScrollView(size_hint=(1, None), size=(200, 200))
+                    except Exception as e:
+                        pass
+                    n += 1
 
-            metricas_layout.add_widget(sales_rate_scroll)
+                for i, v in enumerate(porcento):
+                    ax.text(i - .25,
+                            v / porcento[i] + 50,
+                            round(porcento[i], 1),
+                            fontsize=15,
+                            color="gray",
+                            fontweight='bold'
+                            )
+                ax.get_legend().remove()
+                plt.xticks(rotation=45, ha="right")
 
-            days_sales_scroll.add_widget(days_sales_layout)
-            metricas_layout.add_widget(days_sales_scroll)
+                plt.ylim(0, 100)
+                ax.set(xlabel='')
+                ax.tick_params(axis='both', which='both', length=0, labelsize=15)
+                ax.plot()
+                plt.savefig("testando_plot.png", bbox_inches='tight', dpi=80)
 
-            saidas_de_hoje = GridLayout(cols=1, spacing=15, size_hint_y=None, size=(1000, 500))
+                plt.close()
+                plt_1 = Image(source="testando_plot.png", allow_stretch=True, keep_ratio=False)
+                plt_1.reload()
+                menu_graficos.add_widget(plt_1)
+                # ############ GRÁFICO 1 ############### #
 
-            saidas_de_hoje_scroll = ScrollView(size_hint=(1, None), size=(200, 200))
-            cursor_kamaleao.execute("SELECT date('now', 'localtime')")
+                # ############ GRÁFICO 2 ############### #
 
-            time_value = cursor_kamaleao.fetchone()[0]
-            cursor_kamaleao.execute(
-                "SELECT produto, quantidade FROM relatorios_fluxo WHERE dia LIKE '{}%'".format(time_value))
-            saidas_de_hoje_infos = cursor_kamaleao.fetchall()
+                df_2 = pd.read_sql_query(
+                    "SELECT nome,porcento,rgb from materia_prima LIMIT {} OFFSET {}".format(tamanho, tamanho),
+                    conn_kamaleao)
+                df_2.reset_index(drop=True, inplace=True)
+                cursor_kamaleao.execute('''SELECT rgb from materia_prima''')
+                result = cursor_kamaleao.fetchall()
 
-            for i in saidas_de_hoje_infos:
-                print(i)
-                saidas_de_hoje.add_widget(Label(text=str(i), color=(1, 0, 0, 1)))
+                ax = df_2.plot.bar(x='nome', y='porcento', rot=0, figsize=(26, 3.2))
+                porcento_2 = df_2["porcento"]
 
-            saidas_de_hoje_scroll.add_widget(saidas_de_hoje)
+                childrenLS = ax.get_children()
+                barlist = filter(lambda x: isinstance(x, matplotlib.patches.Rectangle), childrenLS)
+                n = 0
+                cursor_kamaleao.execute("SELECT * from materia_prima LIMIT {} OFFSET {}".format(tamanho, tamanho))
+                result = cursor_kamaleao.fetchall()
+                cores_pro_grafico = []
 
-            metricas_layout.add_widget(saidas_de_hoje_scroll)
-            menu.add_widget(metricas_layout)
+                for i in result:
+                    cor = i[4].replace("[", '')
+                    cor = cor.replace(']', '')
+                    cor = cor.split(",")
+                    for z in range(len(cor)):
+                        cor[z] = round(float(cor[z]), 2)
+                    cor = tuple(cor)
+                    cores_pro_grafico.append(cor)
+
+                n = 0
+                for i in barlist:
+                    try:
+                        cor = cores_pro_grafico[n]
+                        i.set_color(cor)
+
+
+
+                    except Exception as e:
+                        pass
+                    n += 1
+
+                for i, v in enumerate(porcento_2):
+                    ax.text(i - .25,
+                            v / porcento_2[i] + 50,
+                            round(porcento_2[i], 1),
+                            fontsize=15,
+                            color="gray",
+                            fontweight='bold'
+                            )
+                ax.get_legend().remove()
+                plt.xticks(rotation=45, ha="right")
+
+                plt.ylim(0, 100)
+
+                ax.set(xlabel='')
+                # plt.setp(ax1.get_xticklabels(), visible=False)
+                # plt.setp(ax1.get_yticklabels(), visible=False)
+                ax.tick_params(axis='both', which='both', length=0,labelsize=15)
+                ax.plot()
+
+                plt.savefig("testando_plot_2.png", bbox_inches='tight', dpi=80)
+
+                plt.close()
+                img_2 = Image(source="testando_plot_2.png", allow_stretch=True, keep_ratio=False)
+                img_2.reload()
+
+                menu_graficos.add_widget(img_2)
+                menu.add_widget(menu_graficos)
+
+                # ############ GRÁFICO 2 ############### #
+
+                metricas_layout = GridLayout(cols=3, spacing=75)
+                metricas_layout.clear_widgets()
+                metricas_layout.add_widget(Label(text="Sales_rate", color=(0, 0, 0, 1)))
+                metricas_layout.add_widget(Label(text="days sales", color=(0, 0, 0, 1)))
+                metricas_layout.add_widget(Label(text="Fluxo do dia", color=(0, 0, 0, 1)))
+
+                sales_rate_layout = GridLayout(cols=2, spacing=25, size_hint_y=None, size=(1000, 1500))
+                sales_rate_layout.bind(height=layout.setter('height'))
+
+                days_sales_layout = GridLayout(cols=2, spacing=25, size_hint_y=None, size=(1000, 1500))
+                days_sales_layout.bind(height=layout.setter('height'))
+
+                # cursor_kamaleao.execute(
+                # "SELECT nome_mp, sales_rate FROM relatorio_saida_materia_prima ORDER BY nome_mp ASC ")
+                cursor_kamaleao.execute("SELECT date('now', 'localtime')")
+                time_value = cursor_kamaleao.fetchone()[0]
+                cursor_kamaleao.execute(
+                    "SELECT nome_mp, sales_rate FROM relatorio_saida_materia_prima WHERE data LIKE '{}%' ORDER BY nome_mp ASC".format(
+                        time_value))
+                metricas_sales_rate = cursor_kamaleao.fetchall()
+                for i in metricas_sales_rate:
+                    for ii in i:
+                        sales_rate_layout.add_widget(Label(text=str(ii), color=(0, 0, 0, 1)))
+
+                cursor_kamaleao.execute("SELECT nome, estoque_atual FROM materia_prima ORDER BY nome ASC ")
+                nome_estoque_atual = cursor_kamaleao.fetchall()
+                try:
+                    for i in range(len(nome_estoque_atual)):
+                        days_sales_layout.add_widget(Label(text=str(metricas_sales_rate[i][0]), color=(0, 0, 0, 1)))
+
+                        try:
+                            print(round(nome_estoque_atual[i][1] / metricas_sales_rate[i][1], 2))
+                            days_sales_layout.add_widget(
+                                Label(text=str(round(nome_estoque_atual[i][1] / metricas_sales_rate[i][1], 2)),
+                                      color=(0, 0, 0, 1)))
+                        except:
+                            days_sales_layout.add_widget(Label(text="0", color=(0, 0, 0, 1)))
+                except:
+                    metricas_erro = Popup(title="nenhuma métrica foi encontrada", size_hint=(0.1, 0.2),
+                                          background_color=(200 / 255, 210 / 255, 197 / 255, 1), )
+                    metricas_erro.open()
+
+                sales_rate_scroll = ScrollView(size_hint=(1, None), size=(200, 250))
+
+                sales_rate_scroll.add_widget(sales_rate_layout)
+
+                days_sales_scroll = ScrollView(size_hint=(1, None), size=(200, 250))
+
+                metricas_layout.add_widget(sales_rate_scroll)
+
+                days_sales_scroll.add_widget(days_sales_layout)
+                metricas_layout.add_widget(days_sales_scroll)
+
+                saidas_de_hoje = GridLayout(cols=2, spacing=15, size_hint_y=None, size=(1000, 500))
+
+                saidas_de_hoje_scroll = ScrollView(size_hint=(1, None), size=(200, 250))
+                cursor_kamaleao.execute("SELECT date('now', 'localtime')")
+
+                time_value = cursor_kamaleao.fetchone()[0]
+                cursor_kamaleao.execute(
+                    "SELECT produto, quantidade FROM relatorios_fluxo WHERE dia LIKE '{}%'".format(time_value))
+                saidas_de_hoje_infos = cursor_kamaleao.fetchall()
+
+                for i in saidas_de_hoje_infos:
+                    for ii in i:
+                        saidas_de_hoje.add_widget(Label(text=str(ii), color=(0, 0, 0, 1)))
+
+                saidas_de_hoje_scroll.add_widget(saidas_de_hoje)
+
+                metricas_layout.add_widget(saidas_de_hoje_scroll)
+                menu.add_widget(metricas_layout)
+            except Exception as e:
+                erro_grafico_popup = Popup(title=str(e),size_hint=(0.3,0.3))
+                erro_grafico_popup.open()
 
         def settings_view(instance):
             def forms_excel(instance):
-                df = pd.read_sql_query("SELECT * from formulas", conn_kamaleao)
-                s = df['formula'].str.split(',').apply(pd.Series, 1).stack()
-                s.index = s.index.droplevel(-1)
-                s.name = 'formula'
+                try:
+                    df = pd.read_sql_query("SELECT * from formulas", conn_kamaleao)
+                    s = df['formula'].str.split(',').apply(pd.Series, 1).stack()
+                    s.index = s.index.droplevel(-1)
+                    s.name = 'formula'
 
-                del df['formula']
+                    del df['formula']
 
-                df = df.join(s.apply(lambda x: pd.Series(x.split(':'))))
-                df.to_excel(r'formulas.xlsx', index=False)
+                    df = df.join(s.apply(lambda x: pd.Series(x.split(':'))))
+                    df.to_excel(r'formulas.xlsx', index=False)
 
-                if sys.platform == "win32":
-                    os.startfile('formulas.xlsx')
-                else:
-                    opener = "open" if sys.platform == "darwin" else "xdg-open"
-                    subprocess.call([opener, 'formulas.xlsx'])
+                    if sys.platform == "win32":
+                        os.startfile('formulas.xlsx')
+                    else:
+                        opener = "open" if sys.platform == "darwin" else "xdg-open"
+                        subprocess.call([opener, 'formulas.xlsx'])
+                except Exception as e:
+                    print(e)
 
             def forms_pdf(instance):
-                df = pd.read_sql_query("SELECT * from formulas", conn_kamaleao)
-                s = df['formula'].str.split(',').apply(pd.Series, 1).stack()
-                s.index = s.index.droplevel(-1)
-                s.name = 'formula'
+                try:
+                    df = pd.read_sql_query("SELECT * from formulas", conn_kamaleao)
+                    s = df['formula'].str.split(',').apply(pd.Series, 1).stack()
+                    s.index = s.index.droplevel(-1)
+                    s.name = 'formula'
 
-                del df['formula']
+                    del df['formula']
 
-                df = df.join(s.apply(lambda x: pd.Series(x.split(':'))))
+                    df = df.join(s.apply(lambda x: pd.Series(x.split(':'))))
 
-                fig, ax = plt.subplots(figsize=(12, 4))
-                ax.axis('tight')
-                ax.axis('off')
-                the_table = ax.table(cellText=df.values, colLabels=df.columns, loc='center')
-                pp = PdfPages("foo.pdf")
-                pp.savefig(fig, bbox_inches='tight')
-                pp.close()
-                if sys.platform == "win32":
-                    os.startfile('foo.pdf')
-                else:
-                    opener = "open" if sys.platform == "darwin" else "xdg-open"
-                    subprocess.call([opener, "foo.pdf"])
+                    fig, ax = plt.subplots(figsize=(12, 4))
+                    ax.axis('tight')
+                    ax.axis('off')
+                    the_table = ax.table(cellText=df.values, colLabels=df.columns, loc='center')
+                    pp = PdfPages("foo.pdf")
+                    pp.savefig(fig, bbox_inches='tight')
+                    pp.close()
+                    if sys.platform == "win32":
+                        os.startfile('foo.pdf')
+                    else:
+                        opener = "open" if sys.platform == "darwin" else "xdg-open"
+                        subprocess.call([opener, "foo.pdf"])
+                except Exception as e:
+                    print(e)
+
 
             def mp_excel(instance):
                 df = pd.read_sql_query("SELECT * from materia_prima", conn_kamaleao)
-                
+
                 df.to_excel(r'materia_prima.xlsx', index=False)
 
                 if sys.platform == "win32":
@@ -1399,7 +1461,7 @@ class KamaleãoApp(App):
 
             def fluxo_excel(instance):
                 df = pd.read_sql_query("SELECT * from relatorios_fluxo", conn_kamaleao)
-                
+
                 df.to_excel(r'fluxo.xlsx', index=False)
 
                 if sys.platform == "win32":
@@ -1407,7 +1469,6 @@ class KamaleãoApp(App):
                 else:
                     opener = "open" if sys.platform == "darwin" else "xdg-open"
                     subprocess.call([opener, 'fluxo.xlsx'])
-
 
             def fluxo_pdf(instance):
                 df = pd.read_sql_query("SELECT * from relatorios_fluxo", conn_kamaleao)
@@ -1427,7 +1488,7 @@ class KamaleãoApp(App):
 
             def sales_rate_excel(instance):
                 df = pd.read_sql_query("SELECT * from relatorio_saida_materia_prima", conn_kamaleao)
-                
+
                 df.to_excel(r'sales_rate.xlsx', index=False)
 
                 if sys.platform == "win32":
@@ -1452,74 +1513,75 @@ class KamaleãoApp(App):
                     opener = "open" if sys.platform == "darwin" else "xdg-open"
                     subprocess.call([opener, "sales_rate.pdf"])
 
-
-
-
             menu.clear_widgets()
 
-            settings_menu_layout = GridLayout(cols=2)
+            settings_menu_layout = GridLayout(cols=2,spacing=25)
 
-            settings_menu_layout_btt_formulas = Button(text="excel fórmulas")
+            settings_menu_layout_btt_formulas = Button(text="excel fórmulas",background_normal = "img/excel_base.png")
             settings_menu_layout_btt_formulas.bind(on_press=forms_excel)
 
-            settings_menu_layout_btt_formulas_pdf = Button(text="pdf fórmulas")
+            settings_menu_layout_btt_formulas_pdf = Button(text="pdf fórmulas",background_normal = "img/pdf_base.png")
+
             settings_menu_layout_btt_formulas_pdf.bind(on_press=forms_pdf)
             settings_menu_layout.add_widget(settings_menu_layout_btt_formulas_pdf)
 
             settings_menu_layout.add_widget(settings_menu_layout_btt_formulas)
 
-
-            settings_menu_layout_btt_materia_prima = Button(text="excel materia prima")
+            settings_menu_layout_btt_materia_prima = Button(text="excel materia prima",background_normal = "img/excel_base.png")
             settings_menu_layout_btt_materia_prima.bind(on_press=mp_excel)
-            settings_menu_layout_btt_materia_prima_pdf = Button(text="pdf materia prima")
+            settings_menu_layout_btt_materia_prima_pdf = Button(text="pdf materia prima",background_normal = "img/pdf_base.png")
             settings_menu_layout_btt_materia_prima_pdf.bind(on_press=mp_pdf)
             settings_menu_layout.add_widget(settings_menu_layout_btt_materia_prima_pdf)
             settings_menu_layout.add_widget(settings_menu_layout_btt_materia_prima)
 
-            settings_menu_layout_btt_fluxo = Button(text="excel fluxo")
+            settings_menu_layout_btt_fluxo = Button(text="excel fluxo",background_normal = "img/excel_base.png")
             settings_menu_layout_btt_fluxo.bind(on_press=fluxo_excel)
-            settings_menu_layout_btt_fluxo_pdf = Button(text="pdf fluxo")
+            settings_menu_layout_btt_fluxo_pdf = Button(text="pdf fluxo",background_normal = "img/pdf_base.png")
             settings_menu_layout_btt_fluxo_pdf.bind(on_press=fluxo_pdf)
             settings_menu_layout.add_widget(settings_menu_layout_btt_fluxo_pdf)
             settings_menu_layout.add_widget(settings_menu_layout_btt_fluxo)
 
-            settings_menu_layout_btt_sales_rate = Button(text="excel sales_rate")
+            settings_menu_layout_btt_sales_rate = Button(text="excel sales_rate",background_normal = "img/excel_base.png")
             settings_menu_layout_btt_sales_rate.bind(on_press=sales_rate_excel)
-            settings_menu_layout_btt_sales_rate_pdf = Button(text="pdf sales_rate")
+            settings_menu_layout_btt_sales_rate_pdf = Button(text="pdf sales_rate",background_normal = "img/pdf_base.png")
             settings_menu_layout_btt_sales_rate_pdf.bind(on_press=sales_rate_pdf)
             settings_menu_layout.add_widget(settings_menu_layout_btt_sales_rate_pdf)
             settings_menu_layout.add_widget(settings_menu_layout_btt_sales_rate)
 
-
-
             menu.add_widget(settings_menu_layout)
+
+            print(menu.size)
 
         side_bar = GridLayout(cols=1, size_hint_x=None, width=150)
 
         side_bar.add_widget(Label(text="Kamaleão", size_hint=(None, None), height=220, width=150))
 
-        Button_produção = ToggleButton(size_hint=(None, None), height=75, width=150,
-                                       background_normal="img/Produção.png", group='side_menu')
-        Button_produção.bind(on_press=producao_view)
+        Button_producao = ToggleButton(size_hint=(None, None), height=75, width=150,
+                                       background_normal="img/Produção.png", group='side_menu',
+                                       background_down="img/producao_ativo.png")
+        Button_producao.bind(on_press=producao_view)
 
-        side_bar.add_widget(Button_produção)
+        side_bar.add_widget(Button_producao)
 
         Button_estoque = ToggleButton(size_hint=(None, None), height=75, width=150,
-                                      background_normal="img/estoque.png", group='side_menu')
+                                      background_normal="img/estoque.png", group='side_menu',
+                                      background_down="img/estoque_ativo.png")
 
         Button_estoque.bind(on_press=estoque_view)
 
         side_bar.add_widget(Button_estoque)
 
         Button_relatorios = ToggleButton(size_hint=(None, None), height=75, width=150,
-                                         background_normal="img/relatórios.png", group='side_menu')
+                                         background_normal="img/relatórios.png", group='side_menu',
+                                         background_down="img/relatorios_ativo.png")
 
         Button_relatorios.bind(on_press=relatorios_view)
 
         side_bar.add_widget(Button_relatorios)
 
         Button_settings = ToggleButton(size_hint=(None, None), height=75, width=150,
-                                       background_normal="img/settings.png", group='side_menu')
+                                       background_normal="img/documentos.png", group='side_menu',
+                                       background_down="img/documentos_ativo.png")
         Button_settings.bind(on_press=settings_view)
         side_bar.add_widget(Button_settings)
 
